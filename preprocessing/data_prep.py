@@ -119,11 +119,11 @@ external_2023 = make_external_features(weather_2023, ridership_2023)
 external_2024 = make_external_features(weather_2024, ridership_2024)
 
 # Save final data
-spatial_data.to_pickle("data/final_data/spatial_data.pkl")
-temporal_2023.to_pickle("data/final_data/temporal_2023.pkl")
-temporal_2024.to_pickle("data/final_data/temporal_2024.pkl")
-external_2023.to_pickle("data/final_data/external_2023.pkl")
-external_2024.to_pickle("data/final_data/external_2024.pkl")
+spatial_data.to_parquet("data/final_data/spatial_data.parquet")
+temporal_2023.to_parquet("data/final_data/temporal_2023.parquet")
+temporal_2024.to_parquet("data/final_data/temporal_2024.parquet")
+external_2023.to_parquet("data/final_data/external_2023.parquet")
+external_2024.to_parquet("data/final_data/external_2024.parquet")
 
 # Example of getting some time window
 # ___________________________________
