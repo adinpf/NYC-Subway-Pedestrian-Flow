@@ -1,26 +1,25 @@
 import tensorflow as tf
+import numpy as np 
 
-def accuracy_function(prds, labels):
+def MeanAbsoluteError(predicted_flow, true_flow):
     """
-
-    Computes the batch accuracy
-
-    :param prds:  
-    :param labels: 
-    :return: something accuracy
+    Calculating mean absolute value
     """
-    # TODO
-    return 'TODO'
+    dif = tf.abs(predicted_flow - true_flow)
+    return tf.reduce_mean(dif)
 
-
-def loss_function(prds, labels):
+def MeanSquareError(predicted_flow, true_flow):
     """
-    Calculates the model cross-entropy loss after one forward pass
-    Please use reduce sum here instead of reduce mean to make things easier in calculating per symbol accuracy.
-
-    :param prds:  float tensor, word prediction probabilities [batch_size x window_size x english_vocab_size]
-    :param labels:  integer tensor, word prediction labels [batch_size x window_size]
-    :return: SOMETHING LOSS TODO
+    Calculating mean absolute value
     """
-    # TODO
-    return 'TODO'
+    dif = tf.math.square(true_flow - predicted_flow)
+    return tf.reduce_mean(dif)
+
+def PearsonCorrelationCoefficient(predicted_flow, true_flow): 
+    p = predicted_flow - tf.reduce_mean(predicted_flow)
+    t = true_flow - tf.reduce_mean(true_flow)
+
+    skibidi = tf.reduce_sum(p * t)
+    ohio = tf.math.sqrt(tf.reduce_sum(tf.math.square(p)) * tf.reduce_sum(tf.math.square(t))) 
+
+    return skibidi/ohio
