@@ -54,3 +54,5 @@ turnstile_2024['transfers'] = (turnstile_2024['transfers'] - turnstile_2024['tra
 turnstile_2024['ridership'] = (turnstile_2024['ridership'] - turnstile_2024['ridership_min']) / (turnstile_2024['ridership_max'] - turnstile_2024['ridership_min'] + epsilon)
 
 turnstile_2024 = turnstile_2024.drop(columns=['transfers_min', 'transfers_max', 'ridership_min', 'ridership_max'])
+
+print(weather_2024)
