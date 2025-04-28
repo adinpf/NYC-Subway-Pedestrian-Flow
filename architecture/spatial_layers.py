@@ -27,6 +27,7 @@ class GCN(keras.Model):
             BatchNormalization(),
             ReLU(),
         ]
+        # TODO DOES TF TRACK LAYERS_LIST WEIGHTS
 
     def call(self, inputs: tuple):
         '''
@@ -44,13 +45,18 @@ class GCN(keras.Model):
 class stackedSpatialGCNs(keras.layers.Layer):
     def __init__(self, *blocks, **kwargs):
         '''
-        blocks = sequence of layers that each take (g, h) and return h
+        blocks = sequence of layers that each take (x,a) and return x+block(x,a)
         add residual connections between each block
         '''
         super().__init__(**kwargs)
         self.blocks = list(blocks)
 
     def call(self, inputs, training=False):
+        '''
+        inputs: tuple(x,a)
+                x is node_features
+                a is adjacency
+        '''
         x, a = inputs
         # apply all but last with residual
         for block in self.blocks[:-1]:

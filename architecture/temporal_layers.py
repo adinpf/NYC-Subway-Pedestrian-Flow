@@ -1,9 +1,6 @@
-from spektral.layers.convolutional import GCNConv
 import tensorflow as tf
 import keras
-
 from spatial_layers import GCN
-
 
 class STBlock(keras.Model):
     def __init__(self, input_features: int, output_features: int, **kwargs):
@@ -21,17 +18,18 @@ class STBlock(keras.Model):
             filters=output_features,
             kernel_size=3,
             padding="same",
+            data_format="channels_last"
             # data_format="channels_first"  # uncomment for (B, C, T), as opposed to default (B, T, C)
             )
 
     def call(self, inputs, training=False):
         '''
-        inputs: tuple(adjacency, temporal_features)
+        inputs: tuple(temporal_features, adjacency)
                 adjacency: graph connectivity (pass intoo to GCN)
                 temporal_features: tensor shaped [n_nodes, input_features, time_steps]
         :return: tensor shaped [n_nodes, output_features, time_steps]
         '''
-        adjacency, temporal_features = inputs
+        temporal_features,adjacency,  = inputs
         # swap shape to be [n_nodes, time_steps, input_features]
         x = tf.transpose(temporal_features, perm=[0, 2, 1])
         # aply GCN per time slice
@@ -58,14 +56,14 @@ class StackedSTBlocks(keras.layers.Layer):
 
     def call(self, inputs, training=False):
         '''
-        inputs: tuple(adjacency, features)
+        inputs: tuple(features, adjacency)
                 features: [n_nodes, input_features, time_steps]
         
         return: tensor shaped [n_nodes, output_features * num_blocks + input_features, time_steps]
         '''
-        adjacency, h = inputs
+        f, adjacency = inputs
         # seq run each block on input and concatenate the output for next iter
         for block in self.blocks:
-            out = block((adjacency, h), training=training)  # [n_nodes, f_out, time_steps]
-            h = tf.concat([h, out], axis=1)  # concat along features
-        return h
+            out = block((f, adjacency), training=training)  # [n_nodes, f_out, time_steps]
+            f = tf.concat([f, out], axis=1)  # concat along features
+        return f
