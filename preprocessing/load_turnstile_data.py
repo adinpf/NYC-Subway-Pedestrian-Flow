@@ -69,3 +69,5 @@ df_filled[['latitude', 'longitude']] = df_filled.groupby('station_complex_id')[[
 #     ['transit_timestamp', 'ridership', 'transfers']
 # ])
 df_filled.to_parquet(f'data/turnstile_data/{year}_turnstile_data.parquet')
+
+# Hourly
