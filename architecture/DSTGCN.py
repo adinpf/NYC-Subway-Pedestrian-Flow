@@ -1,7 +1,9 @@
 import numpy as np
 import tensorflow as tf
 import keras
-from architecture.spatial_layers import stackedSpatialGCNs, GCN
+from metrics import MeanAbsoluteError, MeanSquareError, PearsonCorrelationCoefficient
+from architecture.spatial_layers import stackedSpatialGCNs, GCN,stackedSpatioTemporalGCNs
+from architecture.temporal_layers import stacked
 
 @keras.saving.register_keras_serializable(package="DSTGCN")
 class DSTGCN(keras.Model):
@@ -42,7 +44,7 @@ class DSTGCN(keras.Model):
         self.loss_function = loss 
         self.accuracy_function = metrics[0]
 
-    def train(self, train_input_stuff, batch_size=30):
+    def test(self, train_input_stuff, batch_size=30):
         """
         Runs through one epoch - all training examples.
 
@@ -77,14 +79,26 @@ class DSTGCN(keras.Model):
         #     gradients = tape.gradient(b_loss, self.trainable_variables)
         #     self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
 
-    def test(self, test_input_stuff, batch_size=30):
+    def train(self, flow_data, batch_size=30, epochs=10):
         """
-        Runs through one epoch - all testing examples.
+        in theory, test will take flow_data and randomize into batch size, 
+        then train for epochs 
 
-        :param model: the initilized model to use for forward and backward pass
-        :param test_input_stuff: TODO TODO TODO
-        :returns: TODO SOME METRIC 
+        input: tensor of pedestrian flows from 2022-2024
+        
         """
+        for e in range(epochs):
+            batch_indices = np.random.choice(np.arange(len(flow_data)), size=batch_size) 
+            batch_samples = flow_data[batch_indices]
+
+            
+            with tf.GradientTape() as tape:
+                pred_flow, actual_flow = self(batch_samples)
+                loss = MeanSquareError(pred_flow, actual_flow)
+
+            gradients = tape.gradient(loss, self.trainable_variables)
+            self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
+
         # num_batches = int(len(test_captions) / batch_size)
 
         # total_loss = total_seen = total_correct = 0
