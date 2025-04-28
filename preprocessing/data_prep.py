@@ -127,7 +127,7 @@ external_2024.to_parquet("data/final_data/external_2024.parquet")
 
 # Example of getting some time window
 # ___________________________________
-timestamp = pd.Timestamp("2024-11-02 22:00:00")
+timestamp = pd.Timestamp("2024-07-04 18:00:00")
 assert (timestamp.day != 1)  or (timestamp.month != 1) 
 station_id = 1
 temporal_data = temporal_2024
@@ -135,7 +135,7 @@ external_data = external_2024
 window = 24
 # print(get_temporal_context(timestamp, 193, temporal_data, window))
 # print(spatial_data)
-# print(get_external_context(timestamp, external_data, window))
+print(get_external_context(timestamp, external_data, window))
 # ___________________________________
 
 
