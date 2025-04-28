@@ -2,8 +2,8 @@ import numpy as np
 import tensorflow as tf
 import keras
 from metrics import MeanAbsoluteError, MeanSquareError, PearsonCorrelationCoefficient
-from architecture.spatial_layers import stackedSpatialGCNs, GCN,stackedSpatioTemporalGCNs
-from architecture.temporal_layers import stacked
+from architecture.spatial_layers import stackedSpatialGCNs, GCN
+from architecture.temporal_layers import StackedSTBlocks, STBlock
 
 @keras.saving.register_keras_serializable(package="DSTGCN")
 class DSTGCN(keras.Model):
@@ -16,7 +16,7 @@ class DSTGCN(keras.Model):
         self.spatial_gcn = stackedSpatialGCNs([GCN(15, [15, 15, 15], 15),
                                            GCN(15, [15, 15, 15], 15),
                                            GCN(15, [14, 13, 12, 11], 10)])
-        self.temporal_embedding = stackedSpatioTemporalGCNs([STBlock(st_features, 4), STBlock(5, 5), STBlock(10, 10)])
+        self.temporal_embedding = StackedSTBlocks([STBlock(st_features, 4), STBlock(5, 5), STBlock(10, 10)])
 
         self.temporal_agg = keras.layers.AveragePooling1D(pool_size=24)
 
@@ -31,6 +31,7 @@ class DSTGCN(keras.Model):
             keras.activations.relu(),
             keras.layers.Dense(out_features)
         ]
+        self.classifier = keras.Sequential(head)
 
     
     def call(self, somthing_inputs):
