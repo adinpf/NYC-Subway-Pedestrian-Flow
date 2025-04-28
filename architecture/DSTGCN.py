@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import keras
+from graph_layers import stackedSpatialGCNs, GCN
 
 @keras.saving.register_keras_serializable(package="DSTGCN")
 class DSTGCN(keras.Model):

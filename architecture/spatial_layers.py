@@ -28,12 +28,34 @@ class GCN(keras.Model):
             ReLU(),
         ]
 
-    def call(self, inputs):
-        x, a = inputs    # x: node features, a: adjacency (dense or sparse)
+    def call(self, inputs: tuple):
+        '''
+        inputs: tuple(x,a) where x=node features, a=adjacency
+        '''
+        x, a = inputs    
         for layer in self.layers_list:
-            # GCNConv takes a list [X, A]
+            # GCNConv input order is [X, A]
             if isinstance(layer, GCNConv):
                 x = layer([x, a])
             else:
                 x = layer(x)
         return x
+    
+class stackedSpatialGCNs(keras.layers.Layer):
+    def __init__(self, *blocks, **kwargs):
+        '''
+        blocks = sequence of layers that each take (g, h) and return h
+        add residual connections between each block
+        '''
+        super().__init__(**kwargs)
+        self.blocks = list(blocks)
+
+    def call(self, inputs, training=False):
+        g, h = inputs
+        # apply all but last with residual
+        for block in self.blocks[:-1]:
+            h = h + block((g, h), training=training)
+        # apply the last one without residual
+        h = self.blocks[-1]((g, h), training=training)
+        return h
+
