@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import keras
-from graph_layers import stackedSpatialGCNs, GCN
+from architecture.spatial_layers import stackedSpatialGCNs, GCN
 
 @keras.saving.register_keras_serializable(package="DSTGCN")
 class DSTGCN(keras.Model):
@@ -27,7 +27,7 @@ class DSTGCN(keras.Model):
         self.external_embedding = keras.Sequential(external_embedding_layers)
         head = [
             keras.activations.relu(),
-            keras.layers.Dense(outfeatures)
+            keras.layers.Dense(out_features)
         ]
 
     
