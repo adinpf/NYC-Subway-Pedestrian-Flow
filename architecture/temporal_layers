@@ -1,4 +1,3 @@
-import dgl
 from spektral.layers.convolutional import GCNConv
 import tensorflow as tf
 import keras
@@ -15,9 +14,9 @@ class STBlock(keras.Model):
         '''
         super().__init__(**kwargs)
 
-        hidden_sizes =  [(input_features * (4 - i) + output_features * i) // 4 for i in (1, 4)]
+        self.hidden_sizes =  [(input_features * (4 - i) + output_features * i) // 4 for i in (1, 4)]
 
-        self.s_embed = GCN(input_features, hidden_sizes, output_features)
+        self.s_embed = GCN(self.hidden_sizes, output_features)
         self.t_embed = tf.keras.layers.Conv1D(
             filters=output_features,
             kernel_size=3,
@@ -25,62 +24,48 @@ class STBlock(keras.Model):
             # data_format="channels_first"  # uncomment for (B, C, T), as opposed to default (B, T, C)
             )
 
-    def spatial_embedding(self, a, graph: dgl.DGLGraph, features: tf.Tensor) -> tf.Tensor:
+    def call(self, inputs, training=False):
         '''
-        spatial embedding with GCN.
-        a: adjacency
-        features shape: [node_num, time_steps, input_feats]
-        can run the GCN across each time slice ADJUST IF NEEDED
+        inputs: tuple(adjacency, temporal_features)
+                adjacency: graph connectivity (pass intoo to GCN)
+                temporal_features: tensor shaped [n_nodes, input_features, time_steps]
+        :return: tensor shaped [n_nodes, output_features, time_steps]
         '''
-        num_t = tf.shape(features)[1]
-        outputs = []
-        for i in range(num_t):
-            # get [node_num, input_feats] slice 
-            feat_t = features[:, i, :]
-
-            out_t = self.s_embed((feat_t, a))
-            # out_t shape should be [node_num, output_features]
-            outputs.append(out_t)
-        
-        # stack back into shape [node_num, time_steps, output_feats]
-        return tf.stack(outputs, axis=1)
-
-    def temporal_embedding(self, x: tf.Tensor) -> tf.Tensor:
-        '''
-        temporal convolution. 
-        x shape should be [node_num, time_steps, output_features], merges over time dimension T.
-        '''
-        # Conv1D expects [batch, length, channels]
-        # insert batch dim
-        x = tf.expand_dims(x, axis=0)  # shape: [1, N, T, output_features]
-        # reshape dims to match Conv1D expectation (CHECK if using default data_format="channels_last")
-        x = tf.transpose(x, perm=[0, 1, 2, 3])  # [1, N, T, output_features]; same order for channels_last
-        x = self.t_embed(x[0]) # remove batch dim again to get [N, T, output_features]
-        return x
-
-    def call(self, a, g: dgl.DGLGraph, temporal_features: tf.Tensor) -> tf.Tensor:
-        """
-        g: DGL graph object (used as adjacency in GCN)
-        temporal_features: shape [node_nums, input_features, time_steps]
-        :return: Tensor shape [N, f_out, T]
-        """
-        # swap feature and time axes to have [node_nums, time_steps, input_features]
+        adjacency, temporal_features = inputs
+        # swap shape to be [n_nodes, time_steps, input_features]
         x = tf.transpose(temporal_features, perm=[0, 2, 1])
-        # spatial embedding to get shape [node_nums, time_steps, output_features]
-        x = self.spatial_embedding(a=a, graph=g, features=x)
-        # swap dims back to have [node_nums, input_features, time_steps]
-        x = tf.transpose(x, perm=[0, 2, 1])
-        # temporal embedding end up at results in [node_nums, output_features, time_steps] again
-        x = self.temporal_embedding(x)
-        return x
+        # aply GCN per time slice
+        time_steps = tf.shape(x)[1]
+        spatial_outputs = []
+        for t in range(time_steps):
+            feat_t = x[:, t, :] # [n_nodes, input_features]
+            out_t = self.spatial_embedding((feat_t, adjacency), training=training)
+            spatial_outputs.append(out_t)  # each out_t is [n_nodes, output_features]
+        # stack into [n_nodes, time_steps, output_features]
+        x_spatial = tf.stack(spatial_outputs, axis=1)
+        # temp conv, with input [batch=n_nodes, length=time_steps, channels=output_features]
+        x_temporal = self.temporal_embedding(x_spatial)
+
+        return tf.transpose(x_temporal, perm=[0, 2, 1])
     
 class StackedSTBlocks(keras.layers.Layer):
-    def __init__(self, *args, **kwargs):
-        super(StackedSTBlocks, self).__init__(*args, **kwargs)
+    '''
+    seq of STBlocks with feature concatenation (i.e. residual stacking).
+    '''
+    def __init__(self, *blocks, **kwargs):
+        super().__init__(**kwargs)
+        self.blocks = list(blocks) # will be STBlocks
 
-    def forward(self, *input):
-        g, h = input
-        for module in self:
-            h = torch.cat((h, module(g, h)), dim=1)
-
+    def call(self, inputs, training=False):
+        '''
+        inputs: tuple(adjacency, features)
+                features: [n_nodes, input_features, time_steps]
+        
+        return: tensor shaped [n_nodes, output_features * num_blocks + input_features, time_steps]
+        '''
+        adjacency, h = inputs
+        # seq run each block on input and concatenate the output for next iter
+        for block in self.blocks:
+            out = block((adjacency, h), training=training)  # [n_nodes, f_out, time_steps]
+            h = tf.concat([h, out], axis=1)  # concat along features
         return h
