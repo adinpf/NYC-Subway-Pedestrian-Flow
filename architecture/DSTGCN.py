@@ -5,9 +5,6 @@ import keras
 from metrics import MeanAbsoluteError, MeanSquareError, PearsonCorrelationCoefficient
 from architecture.spatial_layers import stackedSpatialGCNs, GCN
 from architecture.temporal_layers import StackedSTBlocks, STBlock
-from metrics import MeanAbsoluteError, MeanSquareError, PearsonCorrelationCoefficient
-from architecture.spatial_layers import stackedSpatialGCNs, GCN
-from architecture.temporal_layers import StackedSTBlocks, STBlock
 
 @keras.saving.register_keras_serializable(package="DSTGCN")
 class DSTGCN(keras.Model):
@@ -52,8 +49,7 @@ class DSTGCN(keras.Model):
         # classifier head
         head = [
             keras.activations.relu(),
-            keras.layers.Dense(out_features)
-            keras.layers.Dense(out_features)
+            keras.layers.Dense(out_features),
         ]
         self.classifier = keras.Sequential(head)
 
@@ -73,17 +69,16 @@ class DSTGCN(keras.Model):
         # spatial branch: [N, spatial_dim] --> [N, dim_GCN_output]
         embedded_spatial_features = self.spatial_embedding(spatial_features)  # [N,15]
         spatial_out = self.spatial_gcn((embedded_spatial_features, A), training=training) # [N,10]
-        # graph read-out by averaging across the N nodes --> [1,10]
 
         # temporal branch: [N, temporal_dim, T] --> [N, dim_stgcn_output, T]
-        embedded_temporal_features = self.temporal_embedding((temporal_features, A), training=training) # [N,10,T]
+        embedded_temporal_features = self.temporal_blocks((temporal_features, A), training=training) # [N,10,T]
         etf = tf.transpose(embedded_temporal_features, [0, 2, 1]) # [N,T,10]
         pooled_etf = self.temporal_agg(etf) # [N,1,10]
         etf_out = tf.squeeze(pooled_etf, axis=1) # [N,10]     
 
         # external static features
-        external_static_embedding = self.external_embedding(external_features, training=training) # [1, De]
-        ese_full = tf.tile(external_static_embedding, [N, 1]) # [N, De]
+        external_static_embedding = self.external_embedding(external_features, training=training) # [1, external_dim]
+        ese_full = tf.tile(external_static_embedding, [N, 1]) # [N, external_dim]
 
         # GRUUUUUU weather encoding
         weather_embedding = self.weather_gru(weather_features, training=training) # [1, weather_dim]
