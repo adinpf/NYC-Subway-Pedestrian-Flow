@@ -1,11 +1,12 @@
 import pandas as pd
-import tensorflow as tf
 import networkx as nx
 import pickle
 import torch
+from graph_prep import get_spatial_data
 
 weather_data = pd.read_pickle("data/weather_pandas.pkl")
 ridership_data = pd.read_pickle("data/transport_ridership.pkl")
+spatial = get_spatial_data()
 with open("data/subway_network.pkl", "rb") as f:
     graph = pickle.load(f)
 
@@ -81,20 +82,14 @@ def make_external_features(weather_data, rider_data):
     external_data = weather_data.drop(columns=['date'])
     return external_data
 
-
-# Final data
-turnstile_2023 = turnstile_2023.drop(columns=['transfers_min', 'transfers_max', 'ridership_min', 'ridership_max'])
-turnstile_2024 = turnstile_2024.drop(columns=['transfers_min', 'transfers_max', 'ridership_min', 'ridership_max'])
-external_2023 = make_external_features(weather_2023, ridership_2023)
-external_2024 = make_external_features(weather_2024, ridership_2024)
-
-def get_turnstile_context(timestamp: pd.Timestamp, station_id: int, turnstile_dataset: pd.DataFrame, context_hours: int):
+# Functions to obtain context window for train/test time
+def get_temporal_context(timestamp: pd.Timestamp, station_id: int, temporal_dataset: pd.DataFrame, context_hours: int):
     t = pd.Timestamp(timestamp)
 
-    if not isinstance(turnstile_dataset.index, pd.DatetimeIndex):
-        turnstile_dataset = turnstile_dataset.set_index('transit_timestamp')
+    if not isinstance(temporal_dataset.index, pd.DatetimeIndex):
+        temporal_dataset = temporal_dataset.set_index('transit_timestamp')
 
-    station_df = turnstile_dataset[turnstile_dataset['station_complex_id'] == station_id]
+    station_df = temporal_dataset[temporal_dataset['station_complex_id'] == station_id]
 
     start_t = t - pd.Timedelta(hours=context_hours)
     end_t = t - pd.Timedelta(hours=1)
@@ -116,11 +111,31 @@ def get_external_context(timestamp: pd.Timestamp, external_dataset: pd.DataFrame
 
     return window.sort_index()
 
+# Final data
+spatial_data = spatial
+temporal_2023 = turnstile_2023.drop(columns=['transfers_min', 'transfers_max', 'ridership_min', 'ridership_max'])
+temporal_2024 = turnstile_2024.drop(columns=['transfers_min', 'transfers_max', 'ridership_min', 'ridership_max'])
+external_2023 = make_external_features(weather_2023, ridership_2023)
+external_2024 = make_external_features(weather_2024, ridership_2024)
+
+# Save final data
+spatial_data.to_pickle("data/final_data/spatial_data.pkl")
+temporal_2023.to_pickle("data/final_data/temporal_2023.pkl")
+temporal_2024.to_pickle("data/final_data/temporal_2024.pkl")
+external_2023.to_pickle("data/final_data/external_2023.pkl")
+external_2024.to_pickle("data/final_data/external_2024.pkl")
+
+# Example of getting some time window
+# ___________________________________
 timestamp = pd.Timestamp("2024-11-02 22:00:00")
 assert (timestamp.day != 1)  or (timestamp.month != 1) 
 station_id = 1
-turnstile_data = turnstile_2024
+temporal_data = temporal_2024
 external_data = external_2024
 window = 24
-print(get_turnstile_context(timestamp, station_id, turnstile_data, window))
-print(get_external_context(timestamp, external_data, window))
+# print(get_temporal_context(timestamp, 193, temporal_data, window))
+# print(spatial_data)
+# print(get_external_context(timestamp, external_data, window))
+# ___________________________________
+
+
