@@ -1,3 +1,4 @@
+import random
 import numpy as np
 import tensorflow as tf
 import keras
@@ -10,14 +11,23 @@ class DSTGCN(keras.Model):
 
     def __init__(self, feature_sizes, **kwargs):
         super().__init__(**kwargs)
+        '''
+        out_features should be num_nodes
+        '''
 
-        spatial_features, st_features, external_features, out_features = feature_sizes
+        spatial_features, st_features, external_features, weather_features, out_features = feature_sizes
+
+        # spatial embedding layer to embed spatial features from nodes
         self.spatial_embedding = keras.layers.Dense(spatial_features, [20], 15)
+
+        # stacked spatial GCN blocks
         self.spatial_gcn = stackedSpatialGCNs([GCN(15, [15, 15, 15], 15),
                                            GCN(15, [15, 15, 15], 15),
                                            GCN(15, [14, 13, 12, 11], 10)])
-        self.temporal_embedding = StackedSTBlocks([STBlock(st_features, 4), STBlock(5, 5), STBlock(10, 10)])
-
+        
+        # embedding temporal features
+        self.temporal_blocks = StackedSTBlocks([STBlock(st_features, 4), STBlock(5, 5), STBlock(10, 10)])
+        # average pooling of temporal 
         self.temporal_agg = keras.layers.AveragePooling1D(pool_size=24)
 
         embedding_sizes = [(external_features * (4 - i) + 10 * i) // 4 for i in (1, 4)]
@@ -27,6 +37,16 @@ class DSTGCN(keras.Model):
             keras.layers.Dense(embedding_sizes[1], 10),
         ]
         self.external_embedding = keras.Sequential(external_embedding_layers)
+
+        # weather time series encoder using GRU with dropout
+        self.weather_gru = keras.layers.GRU(
+            units=weather_features,
+            return_sequences=False,
+            dropout=0.2,
+            recurrent_dropout=0.2,
+        )
+
+        # classifier head
         head = [
             keras.activations.relu(),
             keras.layers.Dense(out_features)
@@ -34,112 +54,39 @@ class DSTGCN(keras.Model):
         self.classifier = keras.Sequential(head)
 
     
-    def call(self, somthing_inputs):
-        return 'TODO'
-
-    def compile(self, optimizer, loss, metrics):
+    def call(self, inputs, training=False):
         '''
-        Create a facade to mimic normal keras fit routine
+        inputs = tuple of five feature tensors
+        spatial_features   shape=[num_nodes, spatial_dim] = node static spatial features
+        temporal_features  shape=[num_nodes, temporal_dim, T] = node time series for the given time window
+        external_features  shape=[1, F3] = per-graph external features
+        weather_features   shape=[1,T,weather_dim] = weather series for the given time window
+        A                  shape=[N, N] = adjacency of the B graphs
         '''
-        self.optimizer = optimizer
-        self.loss_function = loss 
-        self.accuracy_function = metrics[0]
+        spatial_features, temporal_features, external_features, weather_features, A = inputs
+        N = tf.shape(A)[0]
 
-    def test(self, train_input_stuff, batch_size=30):
-        """
-        Runs through one epoch - all training examples.
+        # spatial branch: [N, spatial_dim] --> [N, dim_GCN_output]
+        embedded_spatial_features = self.spatial_embedding(spatial_features)  # [N,15]
+        spatial_out = self.spatial_gcn((embedded_spatial_features, A), training=training) # [N,10]
+        # graph read-out by averaging across the N nodes --> [1,10]
 
-        :param model: the initialized model to use for forward and backward pass
-        :param train_input_stuff: TODO TODO TODO
-        :return: None
-        # """
-        # # shuffle features:
-        # range_of_indices = np.arange(train_image_features.shape[0])
-        # random_indices = tf.random.shuffle(range_of_indices)
-        # train_image_features = tf.gather(train_image_features, random_indices)
-        # train_captions = tf.gather(train_captions, random_indices)
+        # temporal branch: [N, temporal_dim, T] --> [N, dim_stgcn_output, T]
+        embedded_temporal_features = self.temporal_embedding((temporal_features, A), training=training) # [N,10,T]
+        etf = tf.transpose(embedded_temporal_features, [0, 2, 1]) # [N,T,10]
+        pooled_etf = self.temporal_agg(etf) # [N,1,10]
+        etf_out = tf.squeeze(pooled_etf, axis=1) # [N,10]     
 
-        # # remove the last token in the window
-        # filtered_decoder_captions = train_captions[:, :-1]
-        # # remove first token for loss 
-        # filtered_loss_captions = train_captions[:, 1:]
+        # external static features
+        external_static_embedding = self.external_embedding(external_features, training=training) # [1, De]
+        ese_full = tf.tile(external_static_embedding, [N, 1]) # [N, De]
 
-        # # batches
-        # for s_ind in range(0, len(train_captions), batch_size):
-        #     e_ind = s_ind + batch_size
-        #     b_image_features = train_image_features[s_ind:e_ind]
-        #     bd_captions = filtered_decoder_captions[s_ind:e_ind]
-        #     bl_captions = filtered_loss_captions[s_ind:e_ind]
+        # GRUUUUUU weather encoding
+        weather_embedding = self.weather_gru(weather_features, training=training) # [1, weather_dim]
+        weather_full = tf.tile(weather_embedding, [N, 1]) # [N, weather_dim]
 
-        #     # forward pass
-        #     with tf.GradientTape() as tape:
-        #         prbs = self.call(b_image_features, bd_captions)
-        #         mask = bl_captions != padding_index
-        #         b_loss = self.loss_function(prbs, bl_captions, mask)
+        # concatenate node features
+        full_features = tf.concat([spatial_out, etf_out, ese_full, weather_full], axis=-1) # [N, spatial_dim+temporal_dim+external_dim+weather_dim]
 
-        #     gradients = tape.gradient(b_loss, self.trainable_variables)
-        #     self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
-
-    def train(self, flow_data, batch_size=30, epochs=10):
-        """
-        in theory, test will take flow_data and randomize into batch size, 
-        then train for epochs 
-
-        input: tensor of pedestrian flows from 2022-2024
-        
-        """
-        for e in range(epochs):
-            batch_indices = np.random.choice(np.arange(len(flow_data)), size=batch_size) 
-            batch_samples = flow_data[batch_indices]
-
-            
-            with tf.GradientTape() as tape:
-                pred_flow, actual_flow = self(batch_samples)
-                loss = MeanSquareError(pred_flow, actual_flow)
-
-            gradients = tape.gradient(loss, self.trainable_variables)
-            self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
-
-        # num_batches = int(len(test_captions) / batch_size)
-
-        # total_loss = total_seen = total_correct = 0
-        # for index, end in enumerate(range(batch_size, len(test_captions)+1, batch_size)):
-
-        #     ## Get the current batch of data, making sure to try to predict the next word
-        #     start = end - batch_size
-        #     batch_image_features = test_image_features[start:end, :]
-        #     decoder_input = test_captions[start:end, :-1]
-        #     decoder_labels = test_captions[start:end, 1:]
-
-        #     ## Perform a no-training forward pass. Make sure to factor out irrelevant labels.
-        #     probs = self(batch_image_features, decoder_input)
-        #     mask = decoder_labels != padding_index
-        #     num_predictions = tf.reduce_sum(tf.cast(mask, tf.float32))
-        #     loss = self.loss_function(probs, decoder_labels, mask)
-        #     accuracy = self.accuracy_function(probs, decoder_labels, mask)
-
-        #     ## Compute and report on aggregated statistics
-        #     total_loss += loss
-        #     total_seen += num_predictions
-        #     total_correct += num_predictions * accuracy
-
-        #     avg_loss = float(total_loss / total_seen)
-        #     avg_acc = float(total_correct / total_seen)
-        #     avg_prp = np.exp(avg_loss)
-        #     print(f"\r[Valid {index+1}/{num_batches}]\t loss={avg_loss:.3f}\t acc: {avg_acc:.3f}\t perp: {avg_prp:.3f}", end='')
-
-        # print()        
-        # return avg_prp, avg_acc
-
-    # def get_config(self):
-    #     base_config = super().get_config()
-    #     config = {
-    #         "decoder": tf.keras.utils.serialize_keras_object(self.decoder),
-    #     }
-    #     return {**base_config, **config}
-
-    # @classmethod
-    # def from_config(cls, config):
-    #     decoder_config = config.pop("decoder")
-    #     decoder = tf.keras.utils.deserialize_keras_object(decoder_config)
-    #     return cls(decoder, **config)
+        # node level prediction
+        return self.classifier(full_features, training=training) # [N, 1]
