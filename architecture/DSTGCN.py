@@ -5,6 +5,9 @@ import keras
 from metrics import MeanAbsoluteError, MeanSquareError, PearsonCorrelationCoefficient
 from architecture.spatial_layers import stackedSpatialGCNs, GCN
 from architecture.temporal_layers import StackedSTBlocks, STBlock
+from metrics import MeanAbsoluteError, MeanSquareError, PearsonCorrelationCoefficient
+from architecture.spatial_layers import stackedSpatialGCNs, GCN
+from architecture.temporal_layers import StackedSTBlocks, STBlock
 
 @keras.saving.register_keras_serializable(package="DSTGCN")
 class DSTGCN(keras.Model):
@@ -49,6 +52,7 @@ class DSTGCN(keras.Model):
         # classifier head
         head = [
             keras.activations.relu(),
+            keras.layers.Dense(out_features)
             keras.layers.Dense(out_features)
         ]
         self.classifier = keras.Sequential(head)
