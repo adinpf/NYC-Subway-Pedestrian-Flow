@@ -4,7 +4,7 @@ import keras
 from keras.layers import BatchNormalization, ReLU
 
 class GCN(keras.Model):
-    def __init__(self, in_feats, hidden_sizes, out_feats):
+    def __init__(self, hidden_sizes, out_feats):
         '''
         gcns with hidden layers
 
@@ -30,7 +30,7 @@ class GCN(keras.Model):
 
     def call(self, inputs: tuple):
         '''
-        inputs: tuple(x,a) where x=node features, a=adjacency
+        inputs: tuple(x, a) where x=node features, a=adjacency
         '''
         x, a = inputs    
         for layer in self.layers_list:
@@ -51,11 +51,11 @@ class stackedSpatialGCNs(keras.layers.Layer):
         self.blocks = list(blocks)
 
     def call(self, inputs, training=False):
-        g, h = inputs
+        x, a = inputs
         # apply all but last with residual
         for block in self.blocks[:-1]:
-            h = h + block((g, h), training=training)
+            x = x + block((x, a), training=training)
         # apply the last one without residual
-        h = self.blocks[-1]((g, h), training=training)
-        return h
+        x = self.blocks[-1]((x, a), training=training)
+        return x
 
