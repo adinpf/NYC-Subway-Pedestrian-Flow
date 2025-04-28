@@ -2,7 +2,6 @@ import pandas as pd
 import json
 import pickle
 
-
 with open("wjsons/2023.json", 'r') as file:
     w1 = json.load(file)
 
@@ -19,7 +18,7 @@ w25 = pd.DataFrame(w3)
 w = pd.concat([w23, w24, w25], ignore_index=True)
 w = w[['date','hour','temp','dew_point', 'humidity','precipitation', 'wind_speed', 'pressure']]
 
-with open('weather.pkl', 'wb') as f:  
+with open('weather_pandas.pkl', 'wb') as f:  
     pickle.dump(w, f)
       
 
