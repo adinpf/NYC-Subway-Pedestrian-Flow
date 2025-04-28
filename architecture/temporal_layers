@@ -25,7 +25,7 @@ class STBlock(keras.Model):
             # data_format="channels_first"  # uncomment for (B, C, T), as opposed to default (B, T, C)
             )
 
-    def spatial_embedding(self, a, g: dgl.DGLGraph, features: tf.Tensor) -> tf.Tensor:
+    def spatial_embedding(self, a, graph: dgl.DGLGraph, features: tf.Tensor) -> tf.Tensor:
         '''
         spatial embedding with GCN.
         a: adjacency
@@ -58,7 +58,7 @@ class STBlock(keras.Model):
         x = self.t_embed(x[0]) # remove batch dim again to get [N, T, output_features]
         return x
 
-    def call(self, g: dgl.DGLGraph, temporal_features: tf.Tensor) -> tf.Tensor:
+    def call(self, a, g: dgl.DGLGraph, temporal_features: tf.Tensor) -> tf.Tensor:
         """
         g: DGL graph object (used as adjacency in GCN)
         temporal_features: shape [node_nums, input_features, time_steps]
@@ -67,7 +67,7 @@ class STBlock(keras.Model):
         # swap feature and time axes to have [node_nums, time_steps, input_features]
         x = tf.transpose(temporal_features, perm=[0, 2, 1])
         # spatial embedding to get shape [node_nums, time_steps, output_features]
-        x = self.spatial_embedding(g, x)
+        x = self.spatial_embedding(a=a, graph=g, features=x)
         # swap dims back to have [node_nums, input_features, time_steps]
         x = tf.transpose(x, perm=[0, 2, 1])
         # temporal embedding end up at results in [node_nums, output_features, time_steps] again
