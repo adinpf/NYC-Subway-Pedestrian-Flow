@@ -92,7 +92,9 @@ def train(model, epochs, batch_size, data):
                     
                     arr = ridership_features.loc[mask].values
                     ridership_vector = tf.convert_to_tensor(arr, dtype=tf.float32)
-                    
+                    ridership_vector = tf.expand_dims(ridership_vector, axis=0)
+                    weather_context = tf.expand_dims(weather_context, axis=0)
+                    y_true = tf.expand_dims(y_true, axis=-1)
                     # forward pass on one window
                     y_pred = model(spatial_features, temporal_context, ridership_vector, weather_context, A, training=True)  # [N,1]
                     total_loss += model.loss(y_true, y_pred)
