@@ -24,9 +24,9 @@ class DSTGCN(keras.Model):
 
 
         # stacked spatial GCN blocks
-        self.spatial_gcn = stackedSpatialGCNs(GCN(15, [15, 15, 15], 15),
-                                           GCN(15, [15, 15, 15], 15),
-                                           GCN(15, [14, 13, 12, 11], 10))
+        self.spatial_gcn = stackedSpatialGCNs(GCN([15, 15, 15], 15),
+                                           GCN([15, 15, 15], 14),
+                                           GCN([14, 13, 12, 11], 10))
         
         # embedding temporal features
         self.temporal_blocks = StackedSTBlocks([STBlock(st_features, 4), STBlock(5, 5), STBlock(10, 10)])

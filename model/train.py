@@ -82,7 +82,7 @@ def train(model, epochs, batch_size, data):
         random.shuffle(windows)
             
         # "batching"
-        for i in range(0, len(windows), batch_size):
+        for i in tqdm(range(0, len(windows), batch_size), desc=f"Epoch {epoch+1}/{epochs}"):
             batch = windows[i:i + batch_size]
 
             with tf.GradientTape() as tape:

@@ -1,5 +1,6 @@
 import tensorflow as tf
 from train import split_external, make_windows
+from tqdm import tqdm
 
 def test(model, batch_size, data):
     # spatial_features, temporal_features, external_features, weather_features, A = model_inputs
