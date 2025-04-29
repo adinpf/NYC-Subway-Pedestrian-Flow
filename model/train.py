@@ -113,9 +113,12 @@ def make_windows(timestamps):
         weather_np = external_windows[ts]                                         # (24,F_ext)
         y_true_np  = y_true_df.loc[ts, station_ids].values.astype(np.float32)     # (N,)
         
-        mask = (ridership_features.index.year == ts.year) & \
-               (ridership_features.index.month == ts.month) & \
-               (ridership_features.index.day == ts.day)
+        day_before = ts - pd.Timedelta(days=1)
+
+        mask = (ridership_features.index.year == day_before.year) & \
+        (ridership_features.index.month == day_before.month) & \
+        (ridership_features.index.day == day_before.day)
+        
         arr = ridership_features.loc[mask].values
         ridership_vector = tf.convert_to_tensor(arr, dtype=tf.float32)
         
@@ -144,7 +147,8 @@ def train(model, epochs, batch_size, data):
     for epoch in range(epochs):
         # shuffle timestamps each epoch
         random.shuffle(windows)
-            
+        epoch_loss = 0
+        batch_count = 0
         # "batching"
         for i in tqdm(range(0, len(windows), batch_size), desc=f"Epoch {epoch+1}/{epochs}"):
             batch = windows[i:i + batch_size]
@@ -162,10 +166,13 @@ def train(model, epochs, batch_size, data):
 
                 # average the loss over the K windows
                 total_loss /= tf.cast(len(batch), tf.float32)
-
+            
+            batch_count += 1
+            epoch_loss += total_loss
             # backprop once
             grads = tape.gradient(total_loss, model.trainable_variables)
             model.optimizer.apply_gradients(zip(grads, model.trainable_variables))
-            print(f"average loss for epoch {epoch+1}: {total_loss}")
+        average_epoch_loss = epoch_loss / batch_count
+        print(f"Average loss for epoch {epoch+1}: {average_epoch_loss}")
     
     
