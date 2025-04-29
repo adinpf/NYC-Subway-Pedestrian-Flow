@@ -78,7 +78,7 @@ def make_external_features(weather_data, rider_data):
         weather_data.loc[mask_23, col] = weather_data.loc[mask_23, 'date'].map(
             rider_data.set_index('date')[col]
         )
-    external_data = weather_data.drop(columns=['date'])
+    external_data = weather_data.drop(columns=['date']).set_index('datetime')
     return external_data
 
 
@@ -122,5 +122,5 @@ station_id = 1
 turnstile_data = turnstile_2024
 external_data = external_2024
 window = 24
-print(get_turnstile_context(timestamp, station_id, turnstile_data, window))
-print(get_external_context(timestamp, external_data, window))
+# print(get_turnstile_context(timestamp, station_id, turnstile_data, window))
+# print(get_external_context(timestamp, external_data, window))
