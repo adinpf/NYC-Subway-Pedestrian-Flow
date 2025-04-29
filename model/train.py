@@ -8,9 +8,7 @@ import pickle
 from tqdm import tqdm
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from preprocessing.training_prep import get_turnstile_context, get_external_context
-
-with open("data/subway_network.pkl", "rb") as f:
-    graph = pickle.load(f)
+from numpy.lib.stride_tricks import sliding_window_view
 
 def split_external(external_features: pd.DataFrame):
     external_features = external_features.set_index('datetime').copy()
@@ -32,84 +30,102 @@ def split_external(external_features: pd.DataFrame):
     
     return ridership_features, weather_features
 
-def make_windows(timestamps, turnstile_df, weather_df):
-    # 1) Pivot turnstile into shape [T, N, 2]
-    #    T = total timestamps, N = num stations, 2 = [ridership, transfers]
-    pivot = turnstile_df.pivot_table(
-        index="transit_timestamp",
-        columns="station_complex_id",
-        values=["ridership","transfers"],
-        fill_value=0.0
+with open("data/subway_network.pkl", "rb") as f:
+    graph = pickle.load(f)
+
+temporal_features = pd.read_parquet("data/final_data/temporal_2023.parquet")
+external_features = pd.read_parquet("data/final_data/external_2023.parquet")
+_, weather_features = split_external(external_features)
+
+tf_df = temporal_features.copy()
+if not isinstance(tf_df.index, pd.DatetimeIndex):
+    tf_df.set_index('transit_timestamp', inplace=True)
+tf_df.sort_index(inplace=True)
+
+# b) List of station IDs in your graph, fixed order
+station_ids = [int(sid) for sid in graph.nodes]
+
+# c) Build sliding windows for each station: dict[station_id][timestamp] -> np.array(24×2)
+station_windows = {}
+for sid, grp in tf_df.groupby('station_complex_id'):
+    arr = grp[['ridership','transfers']].values        # shape (T, 2)
+    wins = sliding_window_view(arr, window_shape=24, axis=0)  # (T-23, 24, 2)
+    ts_ends = grp.index[24:]                              # these are the "window end" timestamps
+    station_windows[sid] = dict(zip(ts_ends, wins))
+
+# d) Build sliding windows for weather: dict[timestamp] -> np.array(24×F_ext)
+weather_arr = weather_features.values                      # shape (T_ext, F_ext)
+ext_wins   = sliding_window_view(weather_arr, 24, axis=0)  # (T_ext-23, 24, F_ext)
+ext_ts     = weather_features.index[23:]
+external_windows = dict(zip(ext_ts, ext_wins))
+
+# e) Pivot your y-true once: DataFrame row=ts, col=station_id
+y_true_df = (
+    tf_df
+    .reset_index()  # makes transit_timestamp a column again
+    .pivot(
+        index='transit_timestamp',
+        columns='station_complex_id',
+        values='ridership'
     )
-    # reorder axes to [T, N, 2]
-    #   pivot.values is [T, 2, N] so we transpose:
-    data_np = pivot.values.transpose(0, 2, 1).astype(np.float32)
-    window_len = 24
-    # 2) Build sliding windows: shape → [T-window_len+1, window_len, N, 2]
-    #    Then we’ll reorder to [T', N, window_len, 2]
-    windows = sliding_window_view(data_np, window_shape=window_len, axis=0)
-    # windows.shape == (T-window_len+1, window_len, N, 2)
-    windows = windows.squeeze()                     # ensure no extra dims
-    windows = windows.transpose(0, 2, 1, 3)         # → [T', N, window_len, 2]
+    .reindex(columns=station_ids, fill_value=0)
+)
 
-    # 3) Pivot weather into [T, W] and then similarly slide
-    w_piv = weather_df.set_index("datetime").sort_index().values.astype(np.float32)
-    w_windows = sliding_window_view(w_piv, window_shape=window_len, axis=0)
-    # w_windows.shape == (T-window_len+1, window_len, W)
-
-    # 4) Build y_true: take ridership at the “present” hour for each station
-    #    That’s just data_np[window_len-1 :, :, 0]
-    y_np = data_np[window_len-1 :, :, 0]            # [T', N]
-
-    # 5) Zip into TensorFlow-friendly tuples
-    T_prime = windows.shape[0]
-    out = []
-    for i in range(T_prime):
-        ts = pivot.index[i + window_len]            # corresponding timestamp
-        temporal = tf.convert_to_tensor(windows[i], dtype=tf.float32)     # [N,24,2]
-        weather  = tf.convert_to_tensor(w_windows[i], dtype=tf.float32)   # [24,W]
-        y_true   = tf.convert_to_tensor(y_np[i], dtype=tf.float32)        # [N]
-        out.append((ts, temporal, weather, y_true))
-
-    return out
-    # weather_list = []
-    # temporal_list = []
-    # y_true_list = []
+# def make_windows(timestamps, temporal_features, weather_features):
+#     weather_list = []
+#     temporal_list = []
+#     y_true_list = []
     
-    # for ts in tqdm(timestamps, desc="Making windows"):
-    #     if (ts.day == 2 and ts.month == 1):
-    #         print("did 1")
-    #     ts_list = []
-    #     y_true_per_ts = []  # collect all y_true for this timestamp
+#     for ts in tqdm(timestamps, desc="Making windows"):
+#         if (ts.day == 2 and ts.month == 1):
+#             print("did 1")
+#         ts_list = []
+#         y_true_per_ts = []  # collect all y_true for this timestamp
         
-    #     weather_list.append(
-    #         tf.convert_to_tensor(get_external_context(ts, weather_features, 24), 
-    #                              dtype=tf.float32)
-    #     )
+#         weather_list.append(
+#             tf.convert_to_tensor(get_external_context(ts, weather_features, 24), 
+#                                  dtype=tf.float32)
+#         )
         
-    #     for node_id in graph.nodes:
-    #         tens = tf.convert_to_tensor(get_turnstile_context(ts, int(node_id), temporal_features, 24),
-    #                                             dtype=tf.float32)
-    #         if len(tens) != 24:
-    #             print(tf.shape(tens))
-    #         ts_list.append(tens)
+#         for node_id in graph.nodes:
+#             tens = tf.convert_to_tensor(get_turnstile_context(ts, int(node_id), temporal_features, 24),
+#                                                 dtype=tf.float32)
+#             if len(tens) != 24:
+#                 print(tf.shape(tens))
+#             ts_list.append(tens)
             
-    #         match = temporal_features[
-    #             (temporal_features["transit_timestamp"] == ts) & 
-    #             (temporal_features["station_complex_id"] == int(node_id))
-    #         ]
-    #         if not match.empty:
-    #             y_true_value = match["ridership"].values[0] 
-    #         else:
-    #             y_true_value = 0.0  
+#             match = temporal_features[
+#                 (temporal_features["transit_timestamp"] == ts) & 
+#                 (temporal_features["station_complex_id"] == int(node_id))
+#             ]
+#             if not match.empty:
+#                 y_true_value = match["ridership"].values[0] 
+#             else:
+#                 y_true_value = 0.0  
             
-    #         y_true_per_ts.append(y_true_value)
+#             y_true_per_ts.append(y_true_value)
         
-    #     temporal_list.append(tf.convert_to_tensor(ts_list, dtype=tf.float32)) 
-    #     y_true_list.append(tf.convert_to_tensor(y_true_per_ts, dtype=tf.float32))
+#         temporal_list.append(tf.convert_to_tensor(ts_list, dtype=tf.float32)) 
+#         y_true_list.append(tf.convert_to_tensor(y_true_per_ts, dtype=tf.float32))
     
-    # return list(zip(timestamps, temporal_list, weather_list, y_true_list))
+#     return list(zip(timestamps, temporal_list, weather_list, y_true_list))
 
+def make_windows(timestamps):
+    windows = []
+    for ts in tqdm(timestamps, desc="Making windows"):
+        # fetch precomputed NumPy arrays in O(1)
+        temp_np    = np.stack([station_windows[sid][ts] for sid in station_ids])  # (N,24,2)
+        weather_np = external_windows[ts]                                         # (24,F_ext)
+        y_true_np  = y_true_df.loc[ts, station_ids].values.astype(np.float32)     # (N,)
+
+        # ONE conversion each
+        windows.append((
+            ts,
+            tf.convert_to_tensor(temp_np,    dtype=tf.float32),  # [N,24,2]
+            tf.convert_to_tensor(weather_np, dtype=tf.float32),  # [24,F_ext]
+            tf.convert_to_tensor(y_true_np,  dtype=tf.float32)   # [N]
+        ))
+    return windows
 
 
 def train(model, epochs, batch_size, data):
@@ -122,7 +138,7 @@ def train(model, epochs, batch_size, data):
     timestamps = weather_features.index
     timestamps = timestamps[(timestamps.month > 1) | (timestamps.day > 1)]
     print("\nmaking window")
-    windows = make_windows(timestamps, temporal_features, weather_features)
+    windows = make_windows(timestamps)
     
     for epoch in range(epochs):
         # shuffle timestamps each epoch
@@ -144,7 +160,7 @@ def train(model, epochs, batch_size, data):
                     y_true = tf.expand_dims(y_true, axis=-1)
                     
                     # forward pass on one window
-                    y_pred = model(spatial_features, temporal_context, ridership_vector, weather_context, A, training=True)  # [N,1]
+                    y_pred = model((spatial_features, temporal_context, ridership_vector, weather_context, A), training=True)  # [N,1]
                     total_loss += model.loss(y_true, y_pred)
 
                 # average the loss over the K windows

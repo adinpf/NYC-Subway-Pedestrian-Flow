@@ -124,6 +124,9 @@ temporal_2023.to_parquet("data/final_data/temporal_2023.parquet")
 temporal_2024.to_parquet("data/final_data/temporal_2024.parquet")
 external_2023.to_parquet("data/final_data/external_2023.parquet")
 external_2024.to_parquet("data/final_data/external_2024.parquet")
+print(temporal_2023[(temporal_2023["station_complex_id"] == 1) & 
+                    (temporal_2023["transit_timestamp"].dt.day == 10) &
+                    (temporal_2023["transit_timestamp"].dt.month == 1)])
 
 # Example of getting some time window
 # ___________________________________
@@ -135,7 +138,7 @@ external_data = external_2024
 window = 24
 # print(get_temporal_context(timestamp, 193, temporal_data, window))
 # print(spatial_data)
-print(get_external_context(timestamp, external_data, window))
+# print(get_external_context(timestamp, external_data, window))
 # ___________________________________
 
 
