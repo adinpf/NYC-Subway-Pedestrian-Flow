@@ -45,16 +45,32 @@ tf_df.sort_index(inplace=True)
 station_ids = [int(sid) for sid in graph.nodes]
 
 station_windows = {}
+all_ts = set()
 for sid, grp in tf_df.groupby('station_complex_id'):
     arr = grp[['ridership','transfers']].values       
     wins = sliding_window_view(arr, window_shape=24, axis=0)  
-    ts_ends = grp.index[24:]                             
+    ts_ends = grp.index[(grp.index.month > 1) | (grp.index.day > 1)]                             
     station_windows[sid] = dict(zip(ts_ends, wins))
+    all_ts.update(ts_ends)
+    
+all_ts = sorted(all_ts)
+
+for sid in station_ids:
+    if sid not in station_windows:
+        station_windows[sid] = {}
+    for ts in all_ts:
+        if ts not in station_windows[sid]:
+            station_windows[sid][ts] = np.zeros((24, 2))
 
 weather_arr = weather_features.values                   
 ext_wins   = sliding_window_view(weather_arr, 24, axis=0)  
-ext_ts     = weather_features.index[23:]
+ext_ts     = weather_features.index[(weather_features.index.month > 1) | (weather_features.index.day > 1)]
 external_windows = dict(zip(ext_ts, ext_wins))
+
+F_ext = ext_wins.shape[2] if ext_wins.ndim == 3 else ext_wins.shape[1]
+for ts in all_ts:
+    if ts not in external_windows:
+        external_windows[ts] = np.zeros((24, F_ext))
 
 y_true_df = (
     tf_df
@@ -69,7 +85,7 @@ y_true_df = (
 
 def make_windows(timestamps):
     windows = []
-    timestamps = timestamps[:100]
+    timestamps = timestamps[:10]
     for ts in tqdm(timestamps, desc="Making windows"):
         temp_np    = np.stack([station_windows[sid][ts] for sid in station_ids])  # (N,24,2)
         weather_np = external_windows[ts]                                         # (24,F_ext)

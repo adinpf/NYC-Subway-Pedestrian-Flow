@@ -32,7 +32,7 @@ if __name__ == "__main__":
     print(f'instantiated model in {time.time() - model_load:4f}s')
     
     adjacency_matrix = build_adjacency_matrix(graph)
-    epochs = 3
+    epochs = 1
     batch_size = 20
     
     
