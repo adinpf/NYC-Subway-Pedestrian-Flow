@@ -11,7 +11,7 @@ def test(model, batch_size, data):
     
     timestamps = weather_features.index
     timestamps = timestamps[(timestamps.month > 1) | (timestamps.day > 1)]
-    windows = make_windows(timestamps, temporal_features, weather_features)
+    windows = make_windows(timestamps)
         
     # "batching"
     batch_losses = []
@@ -19,12 +19,7 @@ def test(model, batch_size, data):
         batch = windows[i:i + batch_size]
 
         batch_loss = 0.0
-        for (ts, temporal_context, weather_context, y_true) in batch:
-            mask = (ridership_features.index.year == ts.year) & (ridership_features.index.day == ts.day) & (ridership_features.index.month == ts.month)
-            
-            arr = ridership_features.loc[mask].values
-            ridership_vector = tf.convert_to_tensor(arr, dtype=tf.float32)
-            ridership_vector = tf.expand_dims(ridership_vector, axis=0)
+        for (ts, temporal_context, weather_context, ridership_vector, y_true) in batch:
             weather_context = tf.expand_dims(weather_context, axis=0)
             y_true = tf.expand_dims(y_true, axis=-1)
             # forward pass on one window

@@ -35,7 +35,7 @@ with open("data/subway_network.pkl", "rb") as f:
 
 temporal_features = pd.read_parquet("data/final_data/temporal_2023.parquet")
 external_features = pd.read_parquet("data/final_data/external_2023.parquet")
-_, weather_features = split_external(external_features)
+ridership_features, weather_features = split_external(external_features)
 
 tf_df = temporal_features.copy()
 if not isinstance(tf_df.index, pd.DatetimeIndex):
@@ -112,11 +112,18 @@ def make_windows(timestamps):
         temp_np    = np.stack([station_windows[sid][ts] for sid in station_ids])  # (N,24,2)
         weather_np = external_windows[ts]                                         # (24,F_ext)
         y_true_np  = y_true_df.loc[ts, station_ids].values.astype(np.float32)     # (N,)
-
+        
+        mask = (ridership_features.index.year == ts.year) & \
+               (ridership_features.index.month == ts.month) & \
+               (ridership_features.index.day == ts.day)
+        arr = ridership_features.loc[mask].values
+        ridership_vector = tf.convert_to_tensor(arr, dtype=tf.float32)
+        
         windows.append((
             ts,
             tf.convert_to_tensor(temp_np,    dtype=tf.float32),  # [N,24,2]
             tf.convert_to_tensor(weather_np, dtype=tf.float32),  # [24,F_ext]
+            ridership_vector,                                    # [F_rid, 1]
             tf.convert_to_tensor(y_true_np,  dtype=tf.float32)   # [N]
         ))
     return windows
@@ -131,7 +138,7 @@ def train(model, epochs, batch_size, data):
     
     timestamps = weather_features.index
     timestamps = timestamps[(timestamps.month > 1) | (timestamps.day > 1)]
-    print("\nmaking window")
+    # print("\nmaking window")
     windows = make_windows(timestamps)
     
     for epoch in range(epochs):
@@ -144,11 +151,7 @@ def train(model, epochs, batch_size, data):
 
             with tf.GradientTape() as tape:
                 total_loss = 0.0
-                for (ts, temporal_context, weather_context, y_true) in batch:
-                    
-                    mask = (ridership_features.index.year == ts.year) & (ridership_features.index.day == ts.day) & (ridership_features.index.month == ts.month)
-                    arr = ridership_features.loc[mask].values
-                    ridership_vector = tf.convert_to_tensor(arr, dtype=tf.float32)
+                for (ts, temporal_context, weather_context, ridership_vector, y_true) in batch:
                     
                     weather_context = tf.expand_dims(weather_context, axis=0)
                     y_true = tf.expand_dims(y_true, axis=-1)
@@ -163,5 +166,6 @@ def train(model, epochs, batch_size, data):
             # backprop once
             grads = tape.gradient(total_loss, model.trainable_variables)
             model.optimizer.apply_gradients(zip(grads, model.trainable_variables))
+            print(f"average loss for epoch {epoc+1}: {total_loss}")
     
     
