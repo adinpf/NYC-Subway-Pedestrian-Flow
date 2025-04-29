@@ -42,27 +42,23 @@ if not isinstance(tf_df.index, pd.DatetimeIndex):
     tf_df.set_index('transit_timestamp', inplace=True)
 tf_df.sort_index(inplace=True)
 
-# b) List of station IDs in your graph, fixed order
 station_ids = [int(sid) for sid in graph.nodes]
 
-# c) Build sliding windows for each station: dict[station_id][timestamp] -> np.array(24×2)
 station_windows = {}
 for sid, grp in tf_df.groupby('station_complex_id'):
-    arr = grp[['ridership','transfers']].values        # shape (T, 2)
-    wins = sliding_window_view(arr, window_shape=24, axis=0)  # (T-23, 24, 2)
-    ts_ends = grp.index[24:]                              # these are the "window end" timestamps
+    arr = grp[['ridership','transfers']].values       
+    wins = sliding_window_view(arr, window_shape=24, axis=0)  
+    ts_ends = grp.index[24:]                             
     station_windows[sid] = dict(zip(ts_ends, wins))
 
-# d) Build sliding windows for weather: dict[timestamp] -> np.array(24×F_ext)
-weather_arr = weather_features.values                      # shape (T_ext, F_ext)
-ext_wins   = sliding_window_view(weather_arr, 24, axis=0)  # (T_ext-23, 24, F_ext)
+weather_arr = weather_features.values                   
+ext_wins   = sliding_window_view(weather_arr, 24, axis=0)  
 ext_ts     = weather_features.index[23:]
 external_windows = dict(zip(ext_ts, ext_wins))
 
-# e) Pivot your y-true once: DataFrame row=ts, col=station_id
 y_true_df = (
     tf_df
-    .reset_index()  # makes transit_timestamp a column again
+    .reset_index()
     .pivot(
         index='transit_timestamp',
         columns='station_complex_id',
@@ -113,12 +109,10 @@ y_true_df = (
 def make_windows(timestamps):
     windows = []
     for ts in tqdm(timestamps, desc="Making windows"):
-        # fetch precomputed NumPy arrays in O(1)
         temp_np    = np.stack([station_windows[sid][ts] for sid in station_ids])  # (N,24,2)
         weather_np = external_windows[ts]                                         # (24,F_ext)
         y_true_np  = y_true_df.loc[ts, station_ids].values.astype(np.float32)     # (N,)
 
-        # ONE conversion each
         windows.append((
             ts,
             tf.convert_to_tensor(temp_np,    dtype=tf.float32),  # [N,24,2]
