@@ -166,6 +166,6 @@ def train(model, epochs, batch_size, data):
             # backprop once
             grads = tape.gradient(total_loss, model.trainable_variables)
             model.optimizer.apply_gradients(zip(grads, model.trainable_variables))
-            print(f"average loss for epoch {epoc+1}: {total_loss}")
+            print(f"average loss for epoch {epoch+1}: {total_loss}")
     
     

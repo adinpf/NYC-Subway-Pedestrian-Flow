@@ -32,15 +32,17 @@ if __name__ == "__main__":
     
     adjacency_matrix = build_adjacency_matrix(graph)
     epochs = 10
-    batch_size = 100
+    batch_size = 128
     
     print(f'starting to train')
     training_start = time.time()
     model.compile(
-        optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
-        loss=tf.keras.losses.MeanSquaredError())
+        optimizer=tf.keras.optimizers.legacy.Adam(learning_rate=0.001),
+        loss=tf.keras.losses.MeanAbsoluteError())
     train(model=model, epochs=epochs, batch_size=batch_size, data=(spatial_data, temporal_2023, external_2023, adjacency_matrix))
+    model.save('model/dstgcn_full_model')
     print(f'finished training in {time.time()-training_start:4f}s')
     average_batch_loss = test(model=model, batch_size=batch_size, data=(spatial_data, temporal_2024, external_2024, adjacency_matrix))
+    print(average_batch_loss)
     
     
