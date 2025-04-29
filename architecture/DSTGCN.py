@@ -35,9 +35,9 @@ class DSTGCN(keras.Model):
 
         embedding_sizes = [(external_features * (4 - i) + 10 * i) // 4 for i in (1, 4)]
         external_embedding_layers = [
-            keras.layers.Dense(external_features, embedding_sizes[0]),
-            keras.layers.Dense(embedding_sizes[0], embedding_sizes[1]),
-            keras.layers.Dense(embedding_sizes[1], 10),
+            keras.layers.Dense(embedding_sizes[0]),
+            keras.layers.Dense(embedding_sizes[1]),
+            keras.layers.Dense(10),
         ]
         self.external_embedding = keras.Sequential(external_embedding_layers)
 

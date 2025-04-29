@@ -100,7 +100,7 @@ def get_turnstile_context(timestamp: pd.Timestamp, station_id: int, turnstile_da
     end_t = t - pd.Timedelta(hours=1)
 
     window = station_df.loc[start_t:end_t]
-
+    assert len(window) == 24
     return window.sort_index()[['ridership', 'transfers']]
 
 def get_external_context(timestamp: pd.Timestamp, external_dataset: pd.DataFrame, context_hours: int):
