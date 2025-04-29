@@ -5,6 +5,7 @@ import pickle
 import pandas as pd
 from numpy.lib.stride_tricks import sliding_window_view
 import numpy as np
+import random
 
 with open("data/subway_network.pkl", "rb") as f:
     graph = pickle.load(f)
@@ -61,8 +62,9 @@ y_true_df = (
 
 def make_windows(timestamps):
     windows = []
-    timestamps = timestamps[:10]
+    timestamps = timestamps[:500]
     for ts in tqdm(timestamps, desc="Making windows"):
+        ts = pd.Timestamp(ts)
         temp_np    = np.stack([station_windows[sid][ts] for sid in station_ids])  # (N,24,2)
         weather_np = external_windows[ts]                                         # (24,F_ext)
         y_true_np  = y_true_df.loc[ts, station_ids].values.astype(np.float32)     # (N,)
@@ -92,8 +94,11 @@ def test(model, batch_size, data):
     spatial_features = tf.convert_to_tensor(spatial_features, dtype=tf.float32)
     
     timestamps = weather_features.index
-    timestamps = timestamps[(timestamps.month > 1) | (timestamps.day > 1)]
+    timestamps = np.array(timestamps[(timestamps.month > 1) | (timestamps.day > 1)])
+    indices_mask = np.random.permutation(len(timestamps))
+    timestamps = timestamps[indices_mask]
     windows = make_windows(timestamps)
+    
     total_loss = 0.0
     total_samples = 0.0
     # "batching"
@@ -103,6 +108,7 @@ def test(model, batch_size, data):
         batch_loss = 0.0
         for (ts, temporal_context, weather_context, ridership_vector, y_true) in batch:
             weather_context = tf.expand_dims(weather_context, axis=0)
+            weather_context = tf.transpose(weather_context, perm=[0, 2, 1])
             y_true = tf.expand_dims(y_true, axis=-1)
             # forward pass on one window
             y_pred = model((spatial_features, temporal_context, ridership_vector, weather_context, A), training=False)  # [N,1]

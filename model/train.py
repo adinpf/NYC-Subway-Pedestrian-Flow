@@ -85,8 +85,9 @@ y_true_df = (
 
 def make_windows(timestamps):
     windows = []
-    timestamps = timestamps[:10]
+    timestamps = timestamps[:500]
     for ts in tqdm(timestamps, desc="Making windows"):
+        ts = pd.Timestamp(ts)
         temp_np    = np.stack([station_windows[sid][ts] for sid in station_ids])  # (N,24,2)
         weather_np = external_windows[ts]                                         # (24,F_ext)
         y_true_np  = y_true_df.loc[ts, station_ids].values.astype(np.float32)     # (N,)
@@ -117,9 +118,12 @@ def train(model, epochs, batch_size, data):
     spatial_features = tf.convert_to_tensor(spatial_features, dtype=tf.float32)
     
     timestamps = weather_features.index
-    timestamps = timestamps[(timestamps.month > 1) | (timestamps.day > 1)]
-    # print("\nmaking window")
+    timestamps = np.array(timestamps[(timestamps.month > 1) | (timestamps.day > 1)])
+    indices_mask = np.random.permutation(len(timestamps))
+    timestamps = timestamps[indices_mask]
     windows = make_windows(timestamps)
+    
+    # print("\nmaking window")
     
     for epoch in range(epochs):
         # shuffle timestamps each epoch
@@ -135,10 +139,16 @@ def train(model, epochs, batch_size, data):
                 for (ts, temporal_context, weather_context, ridership_vector, y_true) in batch:
                     
                     weather_context = tf.expand_dims(weather_context, axis=0)
+                    weather_context = tf.transpose(weather_context, perm=[0, 2, 1])
                     y_true = tf.expand_dims(y_true, axis=-1)
                     
                     # forward pass on one window
+                    # print(f"temporal_context shape: {temporal_context.shape}")  # Expect (N, 24, 2)
+                    # print(f"ridership_vector shape: {ridership_vector.shape}")  # Expect (F_ridership,)
+                    # print(f"weather_context shape: {weather_context.shape}")    # Expect (1, 24, F_ext)
+                    # print(f"spatial_features shape: {spatial_features.shape}")  # Expect (N, F_spatial)
                     y_pred = model((spatial_features, temporal_context, ridership_vector, weather_context, A), training=True)  # [N,1]
+                    # print(y_pred[tf.math.is_nan(y_pred)])
                     total_loss += model.loss(y_true, y_pred)
 
                 # average the loss over the K windows
