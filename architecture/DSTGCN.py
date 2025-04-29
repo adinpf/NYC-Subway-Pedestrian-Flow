@@ -18,12 +18,16 @@ class DSTGCN(keras.Model):
         spatial_features, st_features, external_features, weather_features, out_features = feature_sizes
 
         # spatial embedding layer to embed spatial features from nodes
-        self.spatial_embedding = keras.layers.Dense(spatial_features, [20], 15)
+        self.spatial_embedding = keras.Sequential([
+            keras.layers.Dense(20, activation="relu"),
+            keras.layers.Dense(15, activation="relu"),
+        ])
+
 
         # stacked spatial GCN blocks
-        self.spatial_gcn = stackedSpatialGCNs([GCN(15, [15, 15, 15], 15),
+        self.spatial_gcn = stackedSpatialGCNs(GCN(15, [15, 15, 15], 15),
                                            GCN(15, [15, 15, 15], 15),
-                                           GCN(15, [14, 13, 12, 11], 10)])
+                                           GCN(15, [14, 13, 12, 11], 10))
         
         # embedding temporal features
         self.temporal_blocks = StackedSTBlocks([STBlock(st_features, 4), STBlock(5, 5), STBlock(10, 10)])
@@ -48,7 +52,7 @@ class DSTGCN(keras.Model):
 
         # classifier head
         head = [
-            keras.activations.relu(),
+            keras.layers.ReLU(),
             keras.layers.Dense(out_features),
         ]
         self.classifier = keras.Sequential(head)

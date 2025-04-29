@@ -13,8 +13,8 @@ class STBlock(keras.Model):
 
         self.hidden_sizes =  [(input_features * (4 - i) + output_features * i) // 4 for i in (1, 4)]
 
-        self.s_embed = GCN(self.hidden_sizes, output_features)
-        self.t_embed = tf.keras.layers.Conv1D(
+        self.spatial_embedding = GCN(self.hidden_sizes, output_features)
+        self.temporal_embedding = tf.keras.layers.Conv1D(
             filters=output_features,
             kernel_size=3,
             padding="same",
