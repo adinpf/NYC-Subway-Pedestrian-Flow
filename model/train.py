@@ -85,7 +85,7 @@ y_true_df = (
 
 def make_windows(timestamps):
     windows = []
-    timestamps = timestamps[:500]
+    timestamps = timestamps[:100]
     for ts in tqdm(timestamps, desc="Making windows"):
         ts = pd.Timestamp(ts)
         temp_np    = np.stack([station_windows[sid][ts] for sid in station_ids])  # (N,24,2)
@@ -143,11 +143,8 @@ def train(model, epochs, batch_size, data):
                     y_true = tf.expand_dims(y_true, axis=-1)
                     
                     # forward pass on one window
-                    # print(f"temporal_context shape: {temporal_context.shape}")  # Expect (N, 24, 2)
-                    # print(f"ridership_vector shape: {ridership_vector.shape}")  # Expect (F_ridership,)
-                    # print(f"weather_context shape: {weather_context.shape}")    # Expect (1, 24, F_ext)
-                    # print(f"spatial_features shape: {spatial_features.shape}")  # Expect (N, F_spatial)
                     y_pred = model((spatial_features, temporal_context, ridership_vector, weather_context, A), training=True)  # [N,1]
+        
                     # print(y_pred[tf.math.is_nan(y_pred)])
                     total_loss += model.loss(y_true, y_pred)
 
