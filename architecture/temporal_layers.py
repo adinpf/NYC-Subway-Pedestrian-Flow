@@ -1,6 +1,6 @@
 import tensorflow as tf
 import keras
-from spatial_layers import GCN
+from architecture.spatial_layers import GCN
 
 class STBlock(keras.Model):
     def __init__(self, input_features: int, output_features: int, **kwargs):
