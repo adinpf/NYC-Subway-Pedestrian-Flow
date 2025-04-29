@@ -1,5 +1,4 @@
 import pandas as pd
-import networkx as nx
 import pickle
 from graph_prep import get_spatial_data
 
