@@ -36,7 +36,9 @@ if __name__ == "__main__":
     
     print(f'starting to train')
     training_start = time.time()
-    model.compile()
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+        loss=tf.keras.losses.MeanSquaredError())
     train(model=model, epochs=epochs, batch_size=batch_size, data=(spatial_data, temporal_2023, external_2023, adjacency_matrix))
     print(f'finished training in {time.time()-training_start:4f}s')
     average_batch_loss = test(model=model, batch_size=batch_size, data=(spatial_data, temporal_2024, external_2024, adjacency_matrix))

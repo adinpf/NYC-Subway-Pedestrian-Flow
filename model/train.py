@@ -145,11 +145,11 @@ def train(model, epochs, batch_size, data):
             with tf.GradientTape() as tape:
                 total_loss = 0.0
                 for (ts, temporal_context, weather_context, y_true) in batch:
-                    mask = (ridership_features.index.year == ts.year) & (ridership_features.index.day == ts.day) & (ridership_features.index.month == ts.month)
                     
+                    mask = (ridership_features.index.year == ts.year) & (ridership_features.index.day == ts.day) & (ridership_features.index.month == ts.month)
                     arr = ridership_features.loc[mask].values
                     ridership_vector = tf.convert_to_tensor(arr, dtype=tf.float32)
-                    ridership_vector = tf.expand_dims(ridership_vector, axis=0)
+                    
                     weather_context = tf.expand_dims(weather_context, axis=0)
                     y_true = tf.expand_dims(y_true, axis=-1)
                     
