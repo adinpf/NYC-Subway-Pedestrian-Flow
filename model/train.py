@@ -85,7 +85,7 @@ y_true_df = (
 
 def make_windows(timestamps):
     windows = []
-    timestamps = timestamps[:1000]
+    # timestamps = timestamps[:5000]
     for ts in tqdm(timestamps, desc="Making windows"):
         ts = pd.Timestamp(ts)
         temp_np    = np.stack([station_windows[sid][ts] for sid in station_ids])  # (N,24,2)
