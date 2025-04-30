@@ -11,6 +11,7 @@ from train import train, split_external
 from preprocessing.build_adjacency_matrix import build_adjacency_matrix
 from test import test
 import time
+from architecture.metrics import PearsonCorr, MarginAccuracy
 
 if __name__ == "__main__":
     start_proc = time.time()
@@ -33,23 +34,25 @@ if __name__ == "__main__":
     
     adjacency_matrix = build_adjacency_matrix(graph)
     epochs = 1
-    batch_size = 32
+    batch_size = 128
     
     
     print(f'starting to train')
     training_start = time.time()
     model.compile(
         optimizer=tf.keras.optimizers.legacy.Adam(learning_rate=0.001),
-        loss=tf.keras.losses.MeanAbsoluteError())
-    train(model=model, 
-          epochs=epochs, 
-          batch_size=batch_size, 
-          data=(spatial_data, temporal_2023, ridership_2023, weather_2023, adjacency_matrix))
-    model.save_weights('model/dstgcn_full_model')
-    print(f'finished training in {time.time()-training_start:4f}s')
+        loss=tf.keras.losses.MeanAbsoluteError(),
+        metrics=[PearsonCorr(), MarginAccuracy(margin=5.0)]
+        )
+    # train(model=model, 
+    #       epochs=epochs, 
+    #       batch_size=batch_size, 
+    #       data=(spatial_data, temporal_2023, ridership_2023, weather_2023, adjacency_matrix))
+    model.load_weights('model/dstgcn_full_model')
+    # print(f'finished training in {time.time()-training_start:4f}s')
     average_batch_loss = test(model=model, 
                               batch_size=batch_size, 
                               data=(spatial_data, temporal_2024, ridership_2024, weather_2024, adjacency_matrix))
-    print(average_batch_loss)
+    print(f"The average testing loss is {average_batch_loss}.")
     
     

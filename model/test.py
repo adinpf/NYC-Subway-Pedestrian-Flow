@@ -62,7 +62,7 @@ y_true_df = (
 
 def make_windows(timestamps):
     windows = []
-    timestamps = timestamps[:100]
+    # timestamps = timestamps[:100]
     for ts in tqdm(timestamps, desc="Making windows"):
         ts = pd.Timestamp(ts)
         temp_np    = np.stack([station_windows[sid][ts] for sid in station_ids])  # (N,24,2)
@@ -102,35 +102,37 @@ def test(model, batch_size, data):
     total_loss = 0.0
     total_samples = 0.0
     # "batching"
-    for i in range(0, len(windows), batch_size):
+    for i in tqdm(range(0, len(windows), batch_size)):
         batch = windows[i:i + batch_size]
 
         batch_loss = 0.0
         for (ts, temporal_context, weather_context, ridership_vector, y_true) in batch:
             weather_context = tf.expand_dims(weather_context, axis=0)
-            weather_context = tf.transpose(weather_context, perm=[0, 2, 1])
+            # weather_context = tf.transpose(weather_context, perm=[0, 2, 1])
+            weather_context = tf.where(tf.math.is_nan(weather_context), tf.zeros_like(weather_context), weather_context)
             y_true = tf.expand_dims(y_true, axis=-1)
             # forward pass on one window
             y_pred = model((spatial_features, temporal_context, ridership_vector, weather_context, A), training=False)  # [N,1]
             
             loss = model.loss(y_true, y_pred)
-            if not(tf.math.is_nan(loss)):
-                total_loss += loss
-                total_samples += 1
+            # if not(tf.math.is_nan(loss)):
+            total_loss += loss
+            total_samples += 1
             # else:
-            #     print(f"y_pred: {y_pred}")
             #     print(f"timestamp: {ts}")
-            #     print(f"temporal_context shape: {temporal_context.shape}")  # Expect (N, 24, 2)
-            #     print(f"ridership_vector shape: {ridership_vector.shape}")  # Expect (F_ridership,)
-            #     print(f"weather_context shape: {weather_context.shape}")    # Expect (1, 24, F_ext)
-            #     print(f"spatial_features shape: {spatial_features.shape}")  # Expect (N, F_spatial)
-            # print(f"Y_pred is {y_pred}")
-            # print(f"Y_true is {y_true}")
+            #     if tf.math.reduce_any(tf.math.is_nan(temporal_context)):
+            #         print("temporal_context has nans!")
+            #     elif tf.math.reduce_any(tf.math.is_nan(ridership_vector)):
+            #         print("ridership_vector has nans!")
+            #     elif tf.math.reduce_any(tf.math.is_nan(weather_context)):
+            #         num_nans = tf.reduce_sum(tf.cast(tf.math.is_nan(x), tf.int32))
+            #         print(f"weather_context has {num_nams} nans!")
+            #         print(weather_context)
 
         # average the loss over the K windows
         # batch_loss /= tf.cast(len(batch), tf.float32)
         # batch_losses.append(batch_loss)
     
     average_loss = total_loss / total_samples
-    print(f"Test loss: {average_loss}")
+    # print(f"Test loss: {average_loss}")
     return average_loss

@@ -26,7 +26,7 @@ def split_external(external_features: pd.DataFrame):
                                             'access_a_ride_percent_of_pre','bridges_tunnels_traffic',
                                             'bridges_tunnels_percent_of_pre','sir_ridership','sir_percent_of_pre']]
     
-    ridership_features = ridership_features[ridership_features["subways_percent_of_pre"] != 0]
+    ridership_features = ridership_features[ridership_features.index.hour == 0]
     
     return ridership_features, weather_features
 
@@ -85,7 +85,7 @@ y_true_df = (
 
 def make_windows(timestamps):
     windows = []
-    timestamps = timestamps[:100]
+    # timestamps = timestamps[:100]
     for ts in tqdm(timestamps, desc="Making windows"):
         ts = pd.Timestamp(ts)
         temp_np    = np.stack([station_windows[sid][ts] for sid in station_ids])  # (N,24,2)
@@ -139,7 +139,8 @@ def train(model, epochs, batch_size, data):
                 for (ts, temporal_context, weather_context, ridership_vector, y_true) in batch:
                     
                     weather_context = tf.expand_dims(weather_context, axis=0)
-                    weather_context = tf.transpose(weather_context, perm=[0, 2, 1])
+                    # weather_context = tf.transpose(weather_context, perm=[0, 2, 1])
+                    weather_context = tf.where(tf.math.is_nan(weather_context), tf.zeros_like(weather_context), weather_context)
                     y_true = tf.expand_dims(y_true, axis=-1)
                     
                     # forward pass on one window
