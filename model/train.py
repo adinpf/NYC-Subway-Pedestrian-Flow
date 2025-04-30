@@ -26,7 +26,7 @@ def split_external(external_features: pd.DataFrame):
                                             'access_a_ride_percent_of_pre','bridges_tunnels_traffic',
                                             'bridges_tunnels_percent_of_pre','sir_ridership','sir_percent_of_pre']]
     
-    ridership_features = ridership_features[ridership_features.index.hour == 0]
+    ridership_features = ridership_features[ridership_features.index.hour == 23]
     
     return ridership_features, weather_features
 
@@ -85,7 +85,7 @@ y_true_df = (
 
 def make_windows(timestamps):
     windows = []
-    # timestamps = timestamps[:100]
+    timestamps = timestamps[:1000]
     for ts in tqdm(timestamps, desc="Making windows"):
         ts = pd.Timestamp(ts)
         temp_np    = np.stack([station_windows[sid][ts] for sid in station_ids])  # (N,24,2)

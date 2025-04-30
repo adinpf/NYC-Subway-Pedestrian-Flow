@@ -35,14 +35,14 @@ if __name__ == "__main__":
     adjacency_matrix = build_adjacency_matrix(graph)
     epochs = 1
     batch_size = 128
-    
-    
-    print(f'starting to train')
+    print(ridership_2024)
+    # exit
+    print(f'starting to test')
     training_start = time.time()
     model.compile(
         optimizer=tf.keras.optimizers.legacy.Adam(learning_rate=0.001),
         loss=tf.keras.losses.MeanAbsoluteError(),
-        metrics=[PearsonCorr(), MarginAccuracy(margin=5.0)]
+        # metrics=[PearsonCorr(), MarginAccuracy(margin=5.0)]
         )
     # train(model=model, 
     #       epochs=epochs, 
