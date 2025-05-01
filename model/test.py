@@ -62,7 +62,7 @@ y_true_df = (
 
 def make_windows(timestamps):
     windows = []
-    # timestamps = timestamps[:5000]
+    timestamps = timestamps[:1000]
     for ts in tqdm(timestamps, desc="Making windows"):
         ts = pd.Timestamp(ts)
         temp_np    = np.stack([station_windows[sid][ts] for sid in station_ids])  # (N,24,2)
@@ -108,7 +108,7 @@ def test(model, batch_size, data):
         batch_loss = 0.0
         for (ts, temporal_context, weather_context, ridership_vector, y_true) in batch:
             weather_context = tf.expand_dims(weather_context, axis=0)
-            # weather_context = tf.transpose(weather_context, perm=[0, 2, 1])
+            weather_context = tf.transpose(weather_context, perm=[0, 2, 1])
             weather_context = tf.where(tf.math.is_nan(weather_context), tf.zeros_like(weather_context), weather_context)
             y_true = tf.expand_dims(y_true, axis=-1)
             # forward pass on one window

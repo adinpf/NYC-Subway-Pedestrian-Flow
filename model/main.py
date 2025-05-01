@@ -29,12 +29,12 @@ if __name__ == "__main__":
                     len(temporal_2023.columns),
                     len(ridership_2023.columns), 
                     len(weather_2023.columns),
-                    len(spatial_data)))
+                    1))
     print(f'instantiated model in {time.time() - model_load:4f}s')
     
     adjacency_matrix = build_adjacency_matrix(graph)
-    epochs = 7
-    batch_size = 128
+    epochs = 5
+    batch_size = 64
     # exit
     print('starting to train')
     training_start = time.time()
@@ -43,12 +43,12 @@ if __name__ == "__main__":
         loss=tf.keras.losses.MeanAbsoluteError(),
         metrics=[PearsonCorr(), MarginAccuracy(margin=5.0)]
         )
-    # train(model=model, 
-    #       epochs=epochs, 
-    #       batch_size=batch_size, 
-    #       data=(spatial_data, temporal_2023, ridership_2023, weather_2023, adjacency_matrix))
+    train(model=model, 
+          epochs=epochs, 
+          batch_size=batch_size, 
+          data=(spatial_data, temporal_2023, ridership_2023, weather_2023, adjacency_matrix))
     # model.save_weights('model/dstgcn_full_model_7epochs')
-    model.load_weights('model/dstgcn_full_model_7epochs')
+    # model.load_weights('model/dstgcn_full_model_7epochs')
     # print(f'finished training in {time.time()-training_start:4f}s')
     print('starting to test')
     average_batch_loss = test(model=model, 

@@ -85,7 +85,7 @@ y_true_df = (
 
 def make_windows(timestamps):
     windows = []
-    # timestamps = timestamps[:5000]
+    timestamps = timestamps[:1000]
     for ts in tqdm(timestamps, desc="Making windows"):
         ts = pd.Timestamp(ts)
         temp_np    = np.stack([station_windows[sid][ts] for sid in station_ids])  # (N,24,2)
@@ -121,31 +121,36 @@ def train(model, epochs, batch_size, data):
     timestamps = np.array(timestamps[(timestamps.month > 1) | (timestamps.day > 1)])
     indices_mask = np.random.permutation(len(timestamps))
     timestamps = timestamps[indices_mask]
+    
     windows = make_windows(timestamps)
+    split_idx = int(len(windows) * 0.9)
+    train_windows = windows[:split_idx]
+    val_windows = windows[split_idx:]
     
     # print("\nmaking window")
     
     for epoch in range(epochs):
         # shuffle timestamps each epoch
-        random.shuffle(windows)
+        random.shuffle(train_windows)
+        random.shuffle(val_windows)
         epoch_loss = 0
         batch_count = 0
         # "batching"
-        for i in tqdm(range(0, len(windows), batch_size), desc=f"Epoch {epoch+1}/{epochs}"):
-            batch = windows[i:i + batch_size]
+        for i in tqdm(range(0, len(train_windows), batch_size), desc=f"Epoch {epoch+1}/{epochs}"):
+            batch = train_windows[i:i + batch_size]
 
             with tf.GradientTape() as tape:
                 total_loss = 0.0
                 for (ts, temporal_context, weather_context, ridership_vector, y_true) in batch:
                     
                     weather_context = tf.expand_dims(weather_context, axis=0)
-                    # weather_context = tf.transpose(weather_context, perm=[0, 2, 1])
+                    weather_context = tf.transpose(weather_context, perm=[0, 2, 1])
                     weather_context = tf.where(tf.math.is_nan(weather_context), tf.zeros_like(weather_context), weather_context)
                     y_true = tf.expand_dims(y_true, axis=-1)
                     
                     # forward pass on one window
                     y_pred = model((spatial_features, temporal_context, ridership_vector, weather_context, A), training=True)  # [N,1]
-        
+                    # print(f"the shape of y_pred is {y_pred.shape}")
                     # print(y_pred[tf.math.is_nan(y_pred)])
                     total_loss += model.loss(y_true, y_pred)
 
@@ -159,5 +164,18 @@ def train(model, epochs, batch_size, data):
             model.optimizer.apply_gradients(zip(grads, model.trainable_variables))
         average_epoch_loss = epoch_loss / batch_count
         print(f"Average loss for epoch {epoch+1}: {average_epoch_loss}")
+        
+        val_loss = 0
+        for (ts, temporal_context, weather_context, ridership_vector, y_true) in val_windows:
+            weather_context = tf.expand_dims(weather_context, axis=0)
+            weather_context = tf.transpose(weather_context, perm=[0, 2, 1])
+            weather_context = tf.where(tf.math.is_nan(weather_context), tf.zeros_like(weather_context), weather_context)
+            y_true = tf.expand_dims(y_true, axis=-1)
+
+            y_pred = model((spatial_features, temporal_context, ridership_vector, weather_context, A), training=False)
+            val_loss += model.loss(y_true, y_pred)
+
+        val_loss /= tf.cast(len(val_windows), tf.float32)
+        print(f"Validation loss for epoch {epoch+1}: {val_loss:.4f}\n")
     
     
