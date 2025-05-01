@@ -1,2 +1,2 @@
-model_checkpoint_path: "dstgcn_full_model_5epochs"
-all_model_checkpoint_paths: "dstgcn_full_model_5epochs"
+model_checkpoint_path: "dstgcn_full_model_7epochs"
+all_model_checkpoint_paths: "dstgcn_full_model_7epochs"

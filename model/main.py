@@ -43,12 +43,12 @@ if __name__ == "__main__":
         loss=tf.keras.losses.MeanAbsoluteError(),
         metrics=[PearsonCorr(), MarginAccuracy(margin=5.0)]
         )
-    train(model=model, 
-          epochs=epochs, 
-          batch_size=batch_size, 
-          data=(spatial_data, temporal_2023, ridership_2023, weather_2023, adjacency_matrix))
-    model.save_weights('model/dstgcn_full_model_7epochs')
-    # model.load_weights('model/dstgcn_full_model_7epochs')
+    # train(model=model, 
+    #       epochs=epochs, 
+    #       batch_size=batch_size, 
+    #       data=(spatial_data, temporal_2023, ridership_2023, weather_2023, adjacency_matrix))
+    # model.save_weights('model/dstgcn_full_model_7epochs')
+    model.load_weights('model/dstgcn_full_model_7epochs')
     # print(f'finished training in {time.time()-training_start:4f}s')
     print('starting to test')
     average_batch_loss = test(model=model, 
