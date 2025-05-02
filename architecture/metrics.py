@@ -16,10 +16,12 @@ class PearsonCorr():
         std_true = tf.sqrt(tf.reduce_sum(tf.square(ytc)))
         std_pred = tf.sqrt(tf.reduce_sum(tf.square(ypc)))
 
-        ohio = std_true * std_pred
+        epsilon = 1e-5
+        ohio = std_true * std_pred + epsilon
         gyatt = skibidi / ohio
         
-        self.vals.append(gyatt)
+        if not tf.math.is_nan(gyatt):
+            self.vals.append(gyatt)
 
         return gyatt
 

@@ -33,7 +33,7 @@ if __name__ == "__main__":
     print(f'instantiated model in {time.time() - model_load:4f}s')
     
     adjacency_matrix = build_adjacency_matrix(graph)
-    epochs = 5
+    epochs = 8
 
     batch_size = 64
     # exit
@@ -42,13 +42,12 @@ if __name__ == "__main__":
     model.compile(
         optimizer=tf.keras.optimizers.legacy.Adam(learning_rate=0.001),
         loss=tf.keras.losses.MeanAbsoluteError(),
-        
         )
     average_training_loss, average_training_pearson, average_training_accuracy = train(model=model, 
           epochs=epochs, 
           batch_size=batch_size, 
           data=(spatial_data, temporal_2023, ridership_2023, weather_2023, adjacency_matrix))
-    # model.save_weights('model/dstgcn_full_model_7epochs')
+    model.save_weights('model/dstgcn_full_model_c_8_epochs')
     # model.load_weights('model/dstgcn_full_model_5epochs')
 
     print(f'finished training in {time.time()-training_start:4f}s')
