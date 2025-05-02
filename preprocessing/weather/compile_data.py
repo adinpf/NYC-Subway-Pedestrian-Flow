@@ -1,6 +1,7 @@
 import pandas as pd
 import json
 import pickle
+#taking the weather data from 2023, 2024 and 2025 and combining them into one dataframe
 
 with open("wjsons/2023.json", 'r') as file:
     w1 = json.load(file)
