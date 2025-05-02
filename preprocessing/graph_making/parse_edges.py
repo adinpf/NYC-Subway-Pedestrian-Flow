@@ -87,6 +87,7 @@ def edge_by_trip_unique_lines(stop_times_df, trips_df, routes_df):
     return edge_list_with_line_counts
 
 
+# functionality testing
 # if __name__ == "__main__":
 #     STOPS_FILE = 'data/gtfs_subway/stops.txt'
 #     ROUTES_FILE = 'data/gtfs_subway/routes.txt'

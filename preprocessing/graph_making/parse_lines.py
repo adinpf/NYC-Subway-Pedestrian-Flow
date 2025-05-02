@@ -1,14 +1,14 @@
 import re
 
 def split_by_slash(text):
-  """
+  '''
   split a string by forward slashes '/' and returns a list of substrings
   no slash is present --> return a list containing the original string
 
   input string
 
   return: list of strings arounds the slashes
-  """
+  '''
   if not isinstance(text, str):
     return []
   return text.split('/')

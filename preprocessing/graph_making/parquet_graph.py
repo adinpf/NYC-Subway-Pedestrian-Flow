@@ -76,27 +76,11 @@ if __name__ == "__main__":
     df_stops = pd.read_csv('data/gtfs_June_2023/stops.txt')
     df_stops = df_stops[df_stops['location_type'] == 1].reset_index(drop=True)
 
-    # if graph and graph.number_of_nodes() > 0:
-    #     # print info for the first node
-    #     first_node_id = list(graph.nodes())[0]
-    #     print(f"\test attr. for node '{first_node_id}':")
-    #     print(graph.nodes[first_node_id])
-
-    #     # ex: find node with multiple lines if possible
-    #     node_with_lines = None
-    #     for node_id, data in graph.nodes(data=True):
-    #         if data.get('lines') and len(data['lines']) > 1:
-    #             node_with_lines = node_id
-    #             break
-    #     if node_with_lines:
-    #          print(f"\nAttributes for node '{node_with_lines}' (example with lines):")
-    #          print(graph.nodes[node_with_lines])
-
     STOPS_FILE = 'data/gtfs_June_2023/stops.txt'
     ROUTES_FILE = 'data/gtfs_June_2023/routes.txt'
     TRIPS_FILE = 'data/gtfs_June_2023/trips.txt'
     STOP_TIMES_FILE = 'data/gtfs_June_2023/stop_times.txt'
-    # OUTPUT_GRAPH_FILE = 'subway_graph_parent_nodes_by_id.pkl' # Example filename
+    # OUTPUT_GRAPH_FILE = 'subway_graph_parent_nodes_by_id.pkl' # uncomment for resave
 
     # load data
     stops, routes, trips, stop_times, id_to_name_map = load_gtfs_data(
@@ -106,8 +90,7 @@ if __name__ == "__main__":
     # make edge pairs with unique line counts
     consecutive_edges_with_line_counts = edge_by_trip_unique_lines(stop_times, trips, routes)
     
-    stop_id_to_sc_id = {}
-    add_edges(graph, consecutive_edges_with_line_counts, stop_id_to_sc_id, df_stops)
+    add_edges(graph, consecutive_edges_with_line_counts, df_stops)
     
     
     with open("subway_network.pkl", "wb") as f:
