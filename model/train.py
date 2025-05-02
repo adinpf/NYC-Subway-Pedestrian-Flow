@@ -17,11 +17,6 @@ def train(model, epochs, batch_size, data):
     spatial_features, windows, A = data
     
     spatial_features = tf.convert_to_tensor(spatial_features, dtype=tf.float32)
-    windows = make_windows(timestamps)
-    
-    split_idx = int(len(windows) * 0.9)
-    train_windows = windows[:split_idx]
-    val_windows = windows[split_idx:]
     
     loss_l = []
     pearson_l = []
@@ -33,13 +28,12 @@ def train(model, epochs, batch_size, data):
     
     for epoch in range(epochs):
         # shuffle timestamps each epoch
-        random.shuffle(train_windows)
-        random.shuffle(val_windows)
+        random.shuffle(windows)
         epoch_loss = 0
         batch_count = 0
         # "batching"
-        for i in tqdm(range(0, len(train_windows), batch_size), desc=f"Epoch {epoch+1}/{epochs}"):
-            batch = train_windows[i:i + batch_size]
+        for i in tqdm(range(0, len(windows), batch_size), desc=f"Epoch {epoch+1}/{epochs}"):
+            batch = windows[i:i + batch_size]
 
             with tf.GradientTape() as tape:
                 total_loss = 0.0
@@ -67,19 +61,6 @@ def train(model, epochs, batch_size, data):
 
         pearson.reset_state()
         margin.reset_state()
-        
-        val_loss = 0
-        for (ts, temporal_context, weather_context, ridership_vector, y_true) in val_windows:
-            weather_context = tf.expand_dims(weather_context, axis=0)
-            weather_context = tf.transpose(weather_context, perm=[0, 2, 1])
-            weather_context = tf.where(tf.math.is_nan(weather_context), tf.zeros_like(weather_context), weather_context)
-            y_true = tf.expand_dims(y_true, axis=-1)
-
-            y_pred = model((spatial_features, temporal_context, ridership_vector, weather_context, A), training=False)
-            val_loss += model.loss(y_true, y_pred)
-
-        val_loss /= tf.cast(len(val_windows), tf.float32)
-        print(f"Validation loss for epoch {epoch+1}: {val_loss:.4f}\n")
     
 
     plt.figure(figsize=(15, 5))

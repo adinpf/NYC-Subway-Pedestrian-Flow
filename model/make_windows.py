@@ -81,7 +81,7 @@ def make_windows(temporal_features, external_features, graph):
     )
     
     windows = []
-    # timestamps = timestamps[:1000]
+    # timestamps = timestamps[:500]
     for ts in tqdm(timestamps, desc="Making windows"):
         ts = pd.Timestamp(ts)
         temp_np    = np.stack([station_windows[sid][ts] for sid in station_ids])  # (N,24,2)
@@ -97,9 +97,8 @@ def make_windows(temporal_features, external_features, graph):
         arr = ridership_features.loc[mask].values
         ridership_vector = tf.convert_to_tensor(arr, dtype=tf.float32)
         
-        weather_context = tf.convert_to_tensor(weather_np, dtype=tf.float32)  # [24, F_ext]
-        weather_context = tf.expand_dims(weather_context, axis=0)            # [1, 24, F_ext]
-        weather_context = tf.transpose(weather_context, perm=[0, 2, 1])      # [1, F_ext, 24]
+        weather_context = tf.convert_to_tensor(weather_np, dtype=tf.float32)  # [F_ext, 24]
+        weather_context = tf.expand_dims(weather_context, axis=0)            # [1, F_ext, 24]
         weather_context = tf.where(tf.math.is_nan(weather_context), tf.zeros_like(weather_context), weather_context)
 
         y_true = tf.convert_to_tensor(y_true_np, dtype=tf.float32)           # [N]
@@ -109,9 +108,9 @@ def make_windows(temporal_features, external_features, graph):
         windows.append((
             ts,
             tf.convert_to_tensor(temp_np,    dtype=tf.float32),  # [N,24,2]
-            tf.convert_to_tensor(weather_np, dtype=tf.float32),  # [24,F_ext]
+            tf.convert_to_tensor(weather_context, dtype=tf.float32),  # [24,F_ext]
             ridership_vector,                                    # [F_rid, 1]
-            tf.convert_to_tensor(y_true_np,  dtype=tf.float32)   # [N]
+            tf.convert_to_tensor(y_true,  dtype=tf.float32)   # [N]
         ))
         
     return windows

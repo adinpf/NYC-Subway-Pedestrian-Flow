@@ -36,9 +36,9 @@ if __name__ == "__main__":
     print(f'instantiated model in {time.time() - model_load:4f}s')
     
     A = build_adjacency_matrix(graph)
-    epochs = 10
+    epochs = 3
 
-    batch_size = 128
+    batch_size = 16
     # exit
     print('starting to train')
     training_start = time.time()
