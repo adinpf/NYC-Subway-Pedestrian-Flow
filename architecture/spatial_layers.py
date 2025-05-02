@@ -8,7 +8,7 @@ class GCN(keras.Model):
         '''
         gcns with hidden layers
 
-        params:
+        inputs:
             hidden_sizes: array of sizes for hidden layers
             out_feats: number of output features
         '''
@@ -27,7 +27,6 @@ class GCN(keras.Model):
             BatchNormalization(),
             ReLU(),
         ]
-        # TODO DOES TF TRACK LAYERS_LIST WEIGHTS
 
     def call(self, inputs: tuple):
         '''
@@ -60,8 +59,9 @@ class stackedSpatialGCNs(keras.layers.Layer):
         x, a = inputs
         # apply all but last with residual
         for block in self.blocks[:-1]:
-            x = x + block((x, a), training=training)
-        # apply the last one without residual
+            x = x + block((x, a), training=training) # residual addition
+        
+        # apply the last block without residual
         x = self.blocks[-1]((x, a), training=training)
         return x
 

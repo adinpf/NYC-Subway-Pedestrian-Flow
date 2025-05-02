@@ -13,23 +13,23 @@ class STBlock(keras.Model):
 
         self.hidden_sizes =  [(input_features * (4 - i) + output_features * i) // 4 for i in (1, 4)]
 
-        self.spatial_embedding = GCN(self.hidden_sizes, output_features)
+        self.spatial_embedding = GCN(self.hidden_sizes, output_features) # spatial GCN block
         self.temporal_embedding = tf.keras.layers.Conv1D(
             filters=output_features,
             kernel_size=3,
             padding="same",
             data_format="channels_last"
             # data_format="channels_first"  # uncomment for (B, C, T), as opposed to default (B, T, C)
-            )
+            ) 
 
     def call(self, inputs, training=False):
         '''
         inputs: tuple(temporal_features, adjacency)
                 adjacency: graph connectivity (pass intoo to GCN)
-                temporal_features: tensor shaped [n_nodes, input_features, time_steps]
-        :return: tensor shaped [n_nodes, output_features, time_steps]
+                temporal_features: tensor shaped [num_nodes, input_features, time_steps]
+        return: tensor shaped [num_nodes, output_features, time_steps]
         '''
-        temporal_features,adjacency,  = inputs
+        temporal_features, adjacency = inputs
         # swap shape to be [n_nodes, time_steps, input_features]
         x = tf.transpose(temporal_features, perm=[0, 2, 1])
         # aply GCN per time slice

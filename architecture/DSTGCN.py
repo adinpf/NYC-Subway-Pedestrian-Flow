@@ -14,7 +14,8 @@ class DSTGCN(keras.Model):
         out_features should be num_nodes
         '''
 
-        spatial_features, st_features, external_features, weather_features, out_features = feature_sizes
+        # spatial_features unecessary, tensorflow matches shape
+        st_features, external_features, weather_features, out_features = feature_sizes
 
         # spatial embedding layer to embed spatial features from nodes
         self.spatial_embedding = keras.Sequential([
